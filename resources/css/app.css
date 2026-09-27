@@ -1,0 +1,83 @@
+@import 'tailwindcss';
+
+[x-cloak] { display: none !important; }
+
+.rhu-pagination nav a {
+    color: #065f46;
+    background-color: #fff;
+    border-color: #a7f3d0;
+}
+.rhu-pagination nav a:hover { background-color: #ecfdf5; color: #064e3b; }
+.rhu-pagination nav a:focus-visible { outline: 2px solid #047857; outline-offset: 2px; box-shadow: none; }
+.rhu-pagination [aria-current="page"] > span {
+    color: #fff;
+    background-color: #065f46;
+    border-color: #065f46;
+}
+.rhu-pagination [aria-disabled="true"] > span,
+.rhu-pagination nav span.cursor-not-allowed {
+    color: #94a3b8;
+    background-color: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+.analytics-flip { perspective: 1200px; }
+.analytics-flip-inner { display: grid; transform-style: preserve-3d; transition: transform 450ms ease; }
+.analytics-flip-inner.is-flipped { transform: rotateY(180deg); }
+.analytics-flip-face { grid-area: 1 / 1; min-width: 0; backface-visibility: hidden; }
+.analytics-flip-back { transform: rotateY(180deg); }
+@media (prefers-reduced-motion: reduce) {
+    .analytics-flip-inner { transition: none; }
+}
+
+@media (min-width: 64rem) {
+    .staff-sidebar { width: var(--sidebar-width, 288px); }
+    .staff-content { padding-left: var(--sidebar-width, 288px); }
+    .sidebar-collapsed .staff-sidebar { width: 5rem; }
+    .sidebar-collapsed .staff-content { padding-left: 5rem; }
+    .sidebar-collapsed .sidebar-label { display: none; }
+    .sidebar-collapsed .sidebar-brand-logo { display: none; }
+    .sidebar-collapsed .sidebar-brand > .sidebar-toggle { display: none; }
+    .sidebar-collapsed .sidebar-logo-toggle { display: flex; }
+    .sidebar-collapsed .sidebar-brand { justify-content: center; padding-inline: 0; }
+    .sidebar-collapsed .sidebar-link,
+    .sidebar-collapsed .sidebar-toggle,
+    .sidebar-collapsed .account-trigger { justify-content: center; padding-inline: 0; }
+}
+
+.sidebar-resize-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: -4px;
+    width: 8px;
+    cursor: col-resize;
+    touch-action: none;
+    z-index: 10;
+}
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle:focus-visible,
+.sidebar-resizing .sidebar-resize-handle { background: #05966933; outline: none; }
+.sidebar-resizing, .sidebar-resizing * { cursor: col-resize !important; user-select: none !important; }
+
+.staff-sidebar button:focus-visible { outline: 2px solid #059669; outline-offset: 2px; }
+
+@layer components {
+    .sidebar-link {
+        @apply flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-emerald-50 hover:text-emerald-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700;
+    }
+
+    .sidebar-link[aria-current='page'] {
+        @apply bg-emerald-800 text-white shadow-sm;
+    }
+}
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+}

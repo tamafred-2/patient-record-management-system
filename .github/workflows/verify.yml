@@ -1,0 +1,55 @@
+name: Verify application
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        database: [sqlite, pgsql]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: rhu_test
+          POSTGRES_USER: rhu_test
+          POSTGRES_PASSWORD: testing_only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U rhu_test -d rhu_test"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, dom, gd, pdo_sqlite, pdo_pgsql
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: composer install --no-interaction --prefer-dist
+      - run: cp .env.example .env && php artisan key:generate
+      - run: npm ci && npm run build
+      - run: vendor/bin/pint --test
+      - name: SQLite tests
+        if: matrix.database == 'sqlite'
+        run: php artisan test
+      - name: Install browser
+        if: matrix.database == 'sqlite'
+        run: npx playwright install --with-deps chromium
+      - name: Browser workflows
+        if: matrix.database == 'sqlite'
+        run: npm run test:browser
+      - name: PostgreSQL tests
+        if: matrix.database == 'pgsql'
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: rhu_test
+          DB_USERNAME: rhu_test
+          DB_PASSWORD: testing_only
+        run: php artisan test

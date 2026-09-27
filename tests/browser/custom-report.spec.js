@@ -1,0 +1,35 @@
+import { test, expect } from '@playwright/test';
+
+test('custom report preview and PDF keep selected filters and columns', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Email address').fill('admin@rhu.test');
+  await page.getByLabel('Password', { exact: true }).fill('Password!');
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(page).toHaveURL(/dashboard/);
+  await page.goto('/reports');
+  await page.getByLabel('Date range', { exact: true }).selectOption('today');
+  await expect(page.getByLabel('From date')).toBeDisabled();
+  await page.getByLabel('Consultation', { exact: true }).check();
+  await page.getByLabel('Report contents').selectOption('both');
+  await page.getByLabel('Group summary by').selectOption('day');
+  await page.getByLabel('Queue reference', { exact: true }).uncheck();
+  await page.getByLabel('Completed by', { exact: true }).uncheck();
+  await page.getByRole('button', { name: 'Preview report' }).click();
+  await expect(page.getByRole('heading', { name: 'Summary by visit day' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Administrative visit register' })).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'Queue reference', exact: true })).toHaveCount(0);
+  const link = page.getByRole('link', { name: 'Download report PDF' });
+  const url = new URL(await link.getAttribute('href'));
+  expect(url.searchParams.get('period')).toBe('custom');
+  expect(url.searchParams.get('format')).toBe('both');
+  expect(url.searchParams.get('group')).toBe('day');
+  expect(url.searchParams.get('columns[0]')).toBe('completed_at');
+  const pending = page.waitForEvent('download');
+  await link.click();
+  const download = await pending;
+  expect(await download.failure()).toBeNull();
+  expect(download.suggestedFilename()).toMatch(/^rhu-service-report-.*\.pdf$/);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole('button', { name: 'Preview report' })).toBeVisible();
+  await page.screenshot({ path: 'storage/framework/testing/report-mobile.png', fullPage: true });
+});
