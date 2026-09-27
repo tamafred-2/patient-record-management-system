@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Visit;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
@@ -64,7 +65,7 @@ class TreatmentRecordTest extends TestCase
 
     public function test_new_vitals_snapshot_and_stale_measurements(): void
     {
-        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-09-25 01:00:00', 'UTC'));
+        $this->travelTo(Carbon::parse('2026-09-25 01:00:00', 'UTC'));
         $nurse = User::factory()->create();
         $nurse->assignRole('Nurse');
         $vitalsUrl = route('assessments.save', [$this->patient, $this->visit]);
