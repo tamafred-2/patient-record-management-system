@@ -1,0 +1,69 @@
+import { test, expect } from '@playwright/test';
+
+test('MedTech status shows only the relevant field and saves a viewable RHU result', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Email address').fill('medtech@rhu.test');
+  await page.getByLabel('Password', { exact: true }).fill('Password!');
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await page.goto('/laboratory?all=1');
+  await page.getByRole('link', { name: 'Open lab records' }).first().click();
+  const form = page.locator('form').filter({ has: page.getByRole('heading', { name: 'Add laboratory service' }) });
+  await expect(form.getByLabel('External laboratory advice')).toBeHidden();
+
+  await expect(form.getByLabel('Service status')).toHaveValue('PENDING');
+  await expect(form.getByLabel('Service status').locator('option[value="PERFORMED_RHU"]')).toHaveCount(0);
+  await form.getByLabel('Service status').selectOption('EXTERNAL_ADVISED');
+  await expect(form.getByLabel('External laboratory advice')).toBeVisible();
+  await form.getByLabel('External laboratory advice').fill('Synthetic external advice');
+  await form.getByLabel('Service status').selectOption('PENDING');
+  await expect(form.getByLabel('External laboratory advice')).toBeHidden();
+  await form.getByLabel('Requested test / service').selectOption('Complete blood count (CBC)');
+  await form.getByRole('button', { name: 'Save laboratory service' }).click();
+  let record = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Complete blood count (CBC)', exact: true }) }).first();
+  await expect(record.getByText('Pending', { exact: true })).toBeVisible();
+  await record.getByRole('link', { name: 'Record results / update request' }).click();
+  await page.getByLabel('Service status').selectOption('PERFORMED_RHU');
+  await page.getByLabel('Specimen (optional)').fill('Synthetic specimen');
+  await page.getByLabel('Measurement / component').nth(0).fill('Synthetic component');
+  await page.getByLabel('Synthetic component result', { exact: true }).fill('Synthetic result');
+  await page.getByLabel('Unit (optional)').nth(0).fill('example unit');
+  await page.getByLabel('Reference range (optional)').nth(0).fill('from source report');
+  await page.getByLabel('Measurement / component').nth(1).fill('Second synthetic component');
+  await page.getByLabel('Second synthetic component result', { exact: true }).fill('Second synthetic result');
+  await page.getByRole('button', { name: 'Save results and complete' }).click();
+  record = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Complete blood count (CBC)', exact: true }) }).first();
+  await expect(record.getByText('Completed at RHU', { exact: true })).toBeVisible();
+  await expect(record.getByRole('cell', { name: 'Synthetic result', exact: true })).toBeVisible();
+  await expect(record.getByRole('cell', { name: 'Second synthetic result', exact: true })).toBeVisible();
+  await expect(record.getByText('Synthetic external advice')).toHaveCount(0);
+});
+
+
+test('Urinalysis has distinct blank components and saves only reported findings', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Email address').fill('medtech@rhu.test');
+  await page.getByLabel('Password', { exact: true }).fill('Password!');
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await page.goto('/laboratory?all=1');
+  await page.getByRole('link', { name: 'Open lab records' }).first().click();
+  await page.getByLabel('Requested test / service').selectOption('Urinalysis');
+  await page.getByRole('button', { name: 'Save laboratory service' }).click();
+  let record = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Urinalysis', exact: true }) }).first();
+  await record.getByRole('link', { name: 'Record results / update request' }).click();
+  await page.getByLabel('Service status').selectOption('PERFORMED_RHU');
+  await expect(page.getByLabel('Bacteria result', { exact: true })).toHaveValue('');
+  await expect(page.getByLabel('Protein result', { exact: true })).toHaveValue('');
+  await expect(page.getByLabel('Hemoglobin result', { exact: true })).toHaveCount(0);
+  await page.getByLabel('Bacteria result', { exact: true }).fill('Many');
+  await page.getByLabel('Bacteria report flag', { exact: true }).selectOption('Abnormal');
+  await page.getByLabel('Protein result', { exact: true }).fill('2+');
+  await page.getByLabel('Protein report flag', { exact: true }).selectOption('High');
+  await page.getByRole('button', { name: 'Save results and complete' }).click();
+  record = page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Urinalysis', exact: true }) }).first();
+  await expect(record.getByRole('cell', { name: 'Many', exact: true })).toBeVisible();
+  await expect(record.getByRole('cell', { name: '2+', exact: true })).toBeVisible();
+  await expect(record.locator('tbody tr')).toHaveCount(2);
+  await record.getByRole('link', { name: 'Open record' }).click();
+  await expect(page.getByLabel('Bacteria result', { exact: true })).toHaveValue('Many');
+  await expect(page.getByLabel('Protein report flag', { exact: true })).toHaveValue('High');
+});
