@@ -29,9 +29,9 @@ class DispensingTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         $staff = User::factory()->create();
         $staff->assignRole('Information Staff');
-        $this->actingAs($staff)->post('/patients', ['first_name' => 'Fictional', 'last_name' => 'Verification'])->assertRedirect();
+        $this->actingAs($staff)->post('/patients', ['birth_date' => '2000-01-10', 'sex' => 'Female', 'barangay' => 'Example Barangay', 'municipality' => 'Calasiao', 'province' => 'Pangasinan', 'first_name' => 'Fictional', 'last_name' => 'Verification'])->assertRedirect();
         $this->patient = Patient::firstOrFail();
-        $this->post(route('patients.visits.store', $this->patient), ['service_id' => Service::first()->id, 'visit_date' => now('Asia/Manila')->toDateString()])->assertRedirect();
+        $this->post(route('patients.visits.store', $this->patient), ['service_id' => Service::first()->id, 'visit_date' => now('Asia/Manila')->toDateString(), 'queue_reference' => 'TEST-PHARMACY'])->assertSessionHasNoErrors()->assertRedirect();
         $this->visit = Visit::firstOrFail();
         $this->officer = User::factory()->create();
         $this->officer->assignRole('Doctor / Medical Officer');
@@ -48,8 +48,8 @@ class DispensingTest extends TestCase
     {
         $url = route('prescriptions.show', [$this->patient, $this->visit]);
         $this->put($url, ['lock_version' => 0, 'items' => [
-            ['medicine_name' => 'Fictional medicine A', 'dosage' => 'Example', 'frequency' => 'Example', 'quantity_prescribed' => '5.50'],
-            ['medicine_name' => 'Fictional medicine B', 'dosage' => 'Example', 'frequency' => 'Example', 'quantity_prescribed' => '2.00'],
+            ['medicine_name' => 'Fictional medicine A', 'dosage' => 'Example', 'frequency' => 'Example', 'quantity_prescribed' => '6'],
+            ['medicine_name' => 'Fictional medicine B', 'dosage' => 'Example', 'frequency' => 'Example', 'quantity_prescribed' => '2'],
         ]])->assertSessionHasNoErrors();
         if ($issue) {
             $this->post(route('prescriptions.issue', [$this->patient, $this->visit]), ['lock_version' => 1, 'confirm' => 1])->assertSessionHasNoErrors();
@@ -74,10 +74,10 @@ class DispensingTest extends TestCase
         $this->get('/pharmacy')->assertOk()->assertSee($rx->prescription_number);
         $this->get($this->pharmacyUrl())->assertOk()->assertSee('Not dispensed')->assertDontSee('Fictional assessment');
         $this->post($this->pharmacyUrl(), $this->releaseData())->assertSessionHasNoErrors();
-        $this->get($this->pharmacyUrl())->assertSee('Partially dispensed')->assertSee('4.25')->assertSee('&lt;script&gt;fictional&lt;/script&gt;', false)->assertDontSee('<script>fictional</script>', false);
+        $this->get($this->pharmacyUrl())->assertSee('Partially dispensed')->assertSee('4.75')->assertSee('&lt;script&gt;fictional&lt;/script&gt;', false)->assertDontSee('<script>fictional</script>', false);
         $items = $rx->items;
         $data = $this->releaseData(3);
-        $data['quantities'] = [$items[0]->id => '4.25', $items[1]->id => '2'];
+        $data['quantities'] = [$items[0]->id => '4.75', $items[1]->id => '2'];
         $this->post($this->pharmacyUrl(), $data)->assertSessionHasNoErrors();
         $this->get($this->pharmacyUrl())->assertSee('Fully dispensed');
         $this->assertDatabaseCount('dispensings', 2);
@@ -94,7 +94,7 @@ class DispensingTest extends TestCase
         $this->preparePrescription();
         $base = $this->releaseData();
         $id = array_key_first($base['quantities']);
-        foreach (['5.51', '-1', '1.001', '1e1', 'not numeric'] as $value) {
+        foreach (['6.01', '-1', '1.001', '1e1', 'not numeric'] as $value) {
             $data = $base;
             $data['quantities'] = [$id => $value];
             $this->post($this->pharmacyUrl(), $data)->assertSessionHasErrors();

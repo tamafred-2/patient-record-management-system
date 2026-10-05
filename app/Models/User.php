@@ -47,7 +47,14 @@ class User extends Authenticatable
             'must_change_password' => 'boolean',
             'password_version' => 'integer',
             'email_verified_at' => 'datetime',
+            'last_sign_in_at' => 'datetime',
+            'last_active_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function getRecentlyActiveAttribute(): bool
+    {
+        return $this->is_active && $this->last_active_at && $this->last_active_at->gt(now()->subMinutes(5));
     }
 }

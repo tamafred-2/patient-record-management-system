@@ -15,12 +15,13 @@ class EligibilityController extends Controller
     public function index(Request $request)
     {
         Gate::authorize('eligibility.view');
-        $data = $request->validate(['date' => ['nullable', 'date_format:Y-m-d'], 'search' => ['nullable', 'string', 'max:100']]);
+        $data = $request->validate(['all' => ['sometimes', 'boolean'], 'date' => ['nullable', 'date_format:Y-m-d'], 'search' => ['nullable', 'string', 'max:100']]);
         $search = trim($data['search'] ?? '');
+        $allDates = (bool) ($data['all'] ?? false);
         $date = $data['date'] ?? now('Asia/Manila')->toDateString();
-        $visits = Visit::with(['patient', 'service', 'eligibilityCheck'])->whereHas('patient')->whereDate('visit_date', $date)->searchPatientOrQueue($search)->latest('id')->paginate(20)->withQueryString();
+        $visits = Visit::with(['patient', 'service', 'eligibilityCheck'])->whereHas('patient')->when(! $allDates, fn ($query) => $query->whereDate('visit_date', $date))->searchPatientOrQueue($search)->latest('id')->paginate(20)->withQueryString();
 
-        return view('eligibility.index', compact('visits', 'date', 'search'));
+        return view('eligibility.index', compact('allDates', 'search', 'visits', 'date'));
     }
 
     public function edit(Patient $patient, string $visit)

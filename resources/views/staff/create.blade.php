@@ -6,7 +6,7 @@
         @csrf
         <x-input name="name" label="Full name" autocomplete="name" maxlength="255" required />
         <x-input name="email" label="Email address" type="email" autocomplete="off" maxlength="255" required />
-        <x-input name="password" label="Password (12–72 characters)" type="password" autocomplete="new-password" minlength="12" maxlength="72" required />
+        <x-input name="password" label="Password (8–72 characters)" type="password" autocomplete="new-password" minlength="8" maxlength="72" required />
         <x-input name="password_confirmation" label="Confirm password" type="password" autocomplete="new-password" required />
         @include('staff.roles')
         <p class="text-sm text-slate-600">The user must change this temporary password at first sign-in.</p>

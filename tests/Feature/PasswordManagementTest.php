@@ -20,9 +20,9 @@ class PasswordManagementTest extends TestCase
 
     private const OLD = 'OriginalPassword123!';
 
-    private const TEMP = 'TemporaryPassword123!';
+    private const TEMP = 'Temp123!';
 
-    private const NEW = 'PrivateReplacement123!';
+    private const NEW = 'New1234!';
 
     protected function setUp(): void
     {
@@ -37,7 +37,7 @@ class PasswordManagementTest extends TestCase
 
     private function resetData(): array
     {
-        return ['current_password' => self::OLD, 'password' => self::TEMP, 'password_confirmation' => self::TEMP, 'confirm' => 1, 'password_version' => 0];
+        return ['confirm' => 1, 'password_version' => 0];
     }
 
     private function url(): string
@@ -48,44 +48,47 @@ class PasswordManagementTest extends TestCase
     public function test_admin_reset_forced_change_old_credentials_and_session_versions(): void
     {
         $this->actingAs($this->admin)->post($this->url(), $this->resetData())->assertRedirect(route('staff.edit', $this->staff));
+        $page = $this->get(route('staff.edit', $this->staff))->assertOk();
+        $temporary = $page->viewData('generatedPassword');
+        $this->assertSame(16, strlen($temporary));
+        $this->get(route('staff.edit', $this->staff))->assertViewHas('generatedPassword', null);
         $staff = $this->staff->fresh();
         $this->assertTrue($staff->must_change_password);
-        $this->assertTrue(Hash::check(self::TEMP, $staff->password));
+        $this->assertTrue(Hash::check($temporary, $staff->password));
         $this->assertFalse(Hash::check(self::OLD, $staff->password));
         $this->assertTrue($staff->hasRole('Nurse'));
         $this->actingAs($staff)->withSession(['auth_password_version' => 0])->get('/dashboard')->assertRedirect('/login');
         $this->assertGuest();
         $this->post('/login', ['email' => $staff->email, 'password' => self::OLD])->assertSessionHasErrors('email');
-        $this->post('/login', ['email' => $staff->email, 'password' => self::TEMP])->assertRedirect('/password/change');
+        $this->post('/login', ['email' => $staff->email, 'password' => $temporary])->assertRedirect('/password/change');
         $this->get('/dashboard')->assertRedirect('/password/change');
         $this->get('/analytics?overview=1')->assertRedirect('/password/change');
         $this->post('/patients', [])->assertRedirect('/password/change');
         $this->get('/password/change')->assertOk();
-        $this->put('/password/change', ['current_password' => self::TEMP, 'password' => self::NEW, 'password_confirmation' => self::NEW])->assertRedirect('/dashboard');
+        $this->put('/password/change', ['current_password' => $temporary, 'password' => self::NEW, 'password_confirmation' => self::NEW])->assertRedirect('/dashboard');
         $this->assertFalse($staff->fresh()->must_change_password);
         $this->assertSame(2, $staff->fresh()->password_version);
         $this->get('/dashboard')->assertOk();
         $this->withSession(['auth_password_version' => 1])->get('/analytics')->assertRedirect('/login');
-        $this->post('/login', ['email' => $staff->email, 'password' => self::TEMP])->assertSessionHasErrors('email');
+        $this->post('/login', ['email' => $staff->email, 'password' => $temporary])->assertSessionHasErrors('email');
         $this->post('/login', ['email' => $staff->email, 'password' => self::NEW])->assertRedirect('/dashboard');
         $audits = Activity::whereIn('description', ['staff.password_reset', 'staff.password_changed'])->get();
         $this->assertCount(2, $audits);
-        foreach ([self::TEMP, self::NEW, self::OLD, $staff->fresh()->password] as $secret) {
+        foreach ([$temporary, self::NEW, self::OLD, $staff->fresh()->password] as $secret) {
             $this->assertStringNotContainsString($secret, $audits->toJson());
         }
     }
 
-    public function test_reset_authorization_confirmation_reauthentication_and_stale_forms(): void
+    public function test_reset_authorization_confirmation_and_stale_forms(): void
     {
         $this->post($this->url(), $this->resetData())->assertRedirect('/login');
         $this->actingAs($this->staff)->post($this->url(), $this->resetData())->assertForbidden();
         $this->actingAs($this->admin)->post(route('staff.password.reset', $this->admin), $this->resetData())->assertForbidden();
         $data = $this->resetData();
-        $this->post($this->url(), array_replace($data, ['current_password' => 'incorrect']))->assertSessionHasErrors('current_password');
-        $this->assertNull(session()->getOldInput('current_password'));
         $this->assertNull(session()->getOldInput('password'));
         $this->assertNull(session()->getOldInput('password_confirmation'));
         $this->post($this->url(), array_replace($data, ['confirm' => 0]))->assertSessionHasErrors('confirm');
+        $this->post($this->url(), array_replace($data, ['password' => self::TEMP]))->assertSessionHasErrors('password');
         $this->post($this->url(), array_replace($data, ['password_version' => 99]))->assertSessionHasErrors('password_version');
         $this->assertTrue(Hash::check(self::OLD, $this->staff->fresh()->password));
         $this->assertDatabaseCount('activity_log', 0);
@@ -94,7 +97,7 @@ class PasswordManagementTest extends TestCase
     public function test_change_validation_prevents_reuse_short_mismatched_and_multibyte_passwords(): void
     {
         $this->actingAs($this->staff);
-        foreach (['short', 'PasswordWith'.chr(0).'Null', self::OLD, str_repeat("\u{00E9}", 40)] as $password) {
+        foreach (['1234567', 'PasswordWith'.chr(0).'Null', self::OLD, str_repeat("\u{00E9}", 40)] as $password) {
             $this->put('/password/change', ['current_password' => self::OLD, 'password' => $password, 'password_confirmation' => $password])->assertSessionHasErrors('password');
         }
         $this->put('/password/change', ['current_password' => 'wrong', 'password' => self::NEW, 'password_confirmation' => self::NEW])->assertSessionHasErrors('current_password');

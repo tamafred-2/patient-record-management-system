@@ -11,7 +11,7 @@
         @if($review['midwifeCareCount'] > 0 || $visit->service->seed_key === 'MIDWIFE_CARE')<p><strong>Midwife care entries:</strong> {{ $review['midwifeCareCount'] }}</p>@endif
         @if($review['vaccinationCount'] > 0 || $visit->service->seed_key === 'VACCINATION')<p><strong>Vaccination entries:</strong> {{ $review['vaccinationCount'] }}</p>@endif
         @if($visit->status === 'COMPLETED')
-            <p>Completed by {{ $visit->completedBy?->name ?? 'Not recorded' }} &middot; {{ $visit->completed_at?->timezone('Asia/Manila')->format('M j, Y g:i:s A') ?? 'Not recorded' }} (Asia/Manila)</p>
+            <p>Completed by {{ $visit->completedBy?->name ?? 'Not recorded' }} &middot; {{ $visit->completed_at?->timezone('Asia/Manila')->format('M j, Y g:i:s A') ?? 'Not recorded' }}</p>
             @if($visit->completion_remarks)<p class="whitespace-pre-wrap break-words">{{ $visit->completion_remarks }}</p>@endif
         @elseif($visit->status === 'OPEN')
             @if($review['blocked'])

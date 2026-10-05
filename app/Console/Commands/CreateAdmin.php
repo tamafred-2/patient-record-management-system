@@ -27,13 +27,13 @@ class CreateAdmin extends Command
         $data = [
             'name' => $this->ask('Name'),
             'email' => Str::lower(trim((string) $this->ask('Email'))),
-            'password' => $this->secret('Password (at least 12 characters)'),
+            'password' => $this->secret('Password (at least 8 characters)'),
             'password_confirmation' => $this->secret('Confirm password'),
         ];
         $validator = Validator::make($data, [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'confirmed', Password::min(12), 'max:72'],
+            'password' => ['required', 'confirmed', Password::min(8), 'max:72'],
         ]);
         if ($validator->fails()) {
             foreach ($validator->errors()->all() as $error) {

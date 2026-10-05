@@ -2,10 +2,11 @@
     <a href="{{ route('patients.show', $patient) }}" class="text-emerald-800 underline">Back to patient history</a>
     <p class="mt-6 font-semibold text-emerald-800">{{ $patient->patient_number }} · {{ $patient->full_name }}</p>
     <h1 class="mt-2 text-3xl font-semibold">{{ $visit->visit_number }}</h1>
+    <a href="{{ route('visits.stub', [$patient, $visit]) }}" class="mt-4 inline-block rounded-lg border border-emerald-800 px-4 py-2 font-semibold text-emerald-800">Print / Reprint stub</a>
     <dl class="mt-8 grid gap-6 rounded-xl border border-slate-200 bg-white p-6 sm:grid-cols-2">
         <div><dt class="text-sm text-slate-500">Visit date</dt><dd>{{ $visit->visit_date->format('M j, Y') }}</dd></div>
         <div><dt class="text-sm text-slate-500">Requested service</dt><dd>{{ $visit->service->name }}</dd></div>
-        <div><dt class="text-sm text-slate-500">Existing queue reference</dt><dd>{{ $visit->queue_reference ?? 'Not recorded' }}</dd></div>
+        <div><dt class="text-sm text-slate-500">Queue number</dt><dd>{{ $visit->queue_reference ?? 'Not recorded' }}</dd></div>
         <div><dt class="text-sm text-slate-500">Record status</dt><dd>{{ $visit->status }}</dd></div>
     </dl>
     @can('vitals.view')

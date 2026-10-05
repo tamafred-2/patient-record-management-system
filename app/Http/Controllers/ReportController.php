@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 class ReportController extends Controller
 {
-    public const COLUMNS = ['queue_reference' => 'Queue reference', 'completed_at' => 'Completed at (Asia/Manila)', 'completed_by' => 'Completed by'];
+    public const COLUMNS = ['queue_reference' => 'Queue reference', 'completed_at' => 'Completed at', 'completed_by' => 'Completed by'];
 
     public function index(Request $request)
     {

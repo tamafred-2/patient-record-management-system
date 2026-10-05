@@ -1,7 +1,7 @@
 <x-layout title="Patient history">
     <h1 class="text-3xl font-semibold">Patient history</h1>
     <p class="mt-3 font-medium">{{ $patient->full_name }} &middot; {{ $patient->patient_number }}</p>
-    <p class="mt-2 text-sm text-slate-500">Registered {{ $patient->created_at->timezone('Asia/Manila')->format('M j, Y g:i A') }}. Times use Asia/Manila. Events show original recording times.</p>
+    <p class="mt-2 text-sm text-slate-500">Registered {{ $patient->created_at->timezone('Asia/Manila')->format('M j, Y g:i A') }}. Events show original recording times.</p>
     <div class="mt-6 space-y-5">
         @forelse($visits as $visit)
             <section class="rounded-xl border border-slate-200 bg-white p-6">

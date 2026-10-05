@@ -16,13 +16,14 @@ class MidwifeCareController extends Controller
     public function index(Request $request)
     {
         Gate::authorize('midwife-care.view');
-        $data = $request->validate(['date' => ['nullable', 'date_format:Y-m-d'], 'search' => ['nullable', 'string', 'max:100']]);
+        $data = $request->validate(['all' => ['sometimes', 'boolean'], 'date' => ['nullable', 'date_format:Y-m-d'], 'search' => ['nullable', 'string', 'max:100']]);
+        $allDates = (bool) ($data['all'] ?? false);
         $date = $data['date'] ?? now('Asia/Manila')->toDateString();
         $search = trim($data['search'] ?? '');
         $visits = Visit::midwifeCareVisits()->with('patient')->withCount('midwifeCareRecords')
-            ->whereDate('visit_date', $date)->searchPatientOrQueue($search)->latest('id')->paginate(20)->withQueryString();
+            ->when(! $allDates, fn ($query) => $query->whereDate('visit_date', $date))->searchPatientOrQueue($search)->latest('id')->paginate(20)->withQueryString();
 
-        return view('midwife-care.index', compact('date', 'search', 'visits'));
+        return view('midwife-care.index', compact('allDates', 'search', 'date', 'visits'));
     }
 
     public function show(Patient $patient, string $visit, ?string $record = null)

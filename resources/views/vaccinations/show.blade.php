@@ -38,7 +38,7 @@
                 <p class="text-sm">Administered {{ $entry->administered_on->format('M j, Y') }} by {{ $entry->administered_by }} &middot; Visit {{ $entry->visit->visit_number }}</p>
                 <p class="text-sm">Batch / lot: {{ $entry->batch_number ?? 'Not recorded' }} &middot; Next appointment: {{ $entry->next_appointment?->format('M j, Y') ?? 'Not recorded' }}</p>
                 @if($entry->remarks)<p class="whitespace-pre-wrap break-words text-sm">{{ $entry->remarks }}</p>@endif
-                <p class="text-xs text-slate-500">Entered by {{ $entry->recorder?->name }} &middot; Last saved {{ $entry->updated_at->timezone('Asia/Manila')->format('M j, Y g:i A') }} (Asia/Manila)</p>
+                <p class="text-xs text-slate-500">Entered by {{ $entry->recorder?->name }} &middot; Last saved {{ $entry->updated_at->timezone('Asia/Manila')->format('M j, Y g:i A') }}</p>
                 @if($canEdit && $entry->visit_id === $visit->id)<a class="inline-block font-semibold text-emerald-800 underline" href="{{ route('vaccinations.edit', [$patient, $visit, $entry]) }}">Edit vaccination entry</a>@endif
             </article>
         @empty<p class="text-slate-500">No vaccinations recorded yet.</p>@endforelse

@@ -30,7 +30,7 @@ class PatientRegistryTest extends TestCase
 
     private function data(array $extra = []): array
     {
-        return array_replace(['first_name' => 'Fictional', 'last_name' => 'Sample', 'birth_date' => '2000-01-10', 'barangay' => 'Example Barangay'], $extra);
+        return array_replace(['first_name' => 'Fictional', 'last_name' => 'Sample', 'birth_date' => '2000-01-10', 'barangay' => 'Example Barangay', 'sex' => 'Female', 'municipality' => 'Calasiao', 'province' => 'Pangasinan'], $extra);
     }
 
     private function register(array $extra = []): Patient
@@ -51,17 +51,21 @@ class PatientRegistryTest extends TestCase
         $this->get('/patients?q='.$patient->patient_number)->assertOk()->assertSee('Fictional Sample');
         $this->get(route('patients.show', $patient))->assertOk()->assertSee('Example Barangay');
         $this->get(route('patients.edit', $patient))->assertOk();
+        $this->put(route('patients.update', $patient), $this->data(['sex' => ' ', 'barangay' => '', 'municipality' => '', 'province' => '', 'lock_version' => 1]))
+            ->assertSessionHasErrors(['sex', 'barangay', 'municipality', 'province']);
+        $this->assertSame(1, $patient->fresh()->lock_version);
         $this->put(route('patients.update', $patient), $this->data(['barangay' => 'Changed Barangay', 'lock_version' => 1]))->assertRedirect(route('patients.show', $patient));
         $this->assertSame('Changed Barangay', $patient->fresh()->barangay);
         $this->assertSame($patient->patient_number, $patient->fresh()->patient_number);
         $this->assertSame(2, $patient->fresh()->lock_version);
     }
 
-    public function test_names_only_are_allowed_but_future_birth_dates_are_rejected(): void
+    public function test_sex_and_address_are_required_and_future_birth_dates_are_rejected(): void
     {
         $this->actingAs($this->staff());
-        $this->post('/patients', ['first_name' => 'Only', 'last_name' => 'Names'])->assertRedirect();
-        $this->assertNull(Patient::first()->birth_date);
+        $this->post('/patients', ['first_name' => 'Only', 'last_name' => 'Names'])->assertSessionHasErrors(['sex', 'barangay', 'municipality', 'province', 'birth_date']);
+        $this->post('/patients', $this->data(['birth_date' => null]))->assertSessionHasErrors('birth_date');
+        $this->post('/patients', $this->data())->assertRedirect();
         $this->post('/patients', $this->data(['birth_date' => now()->addDay()->format('Y-m-d')]))->assertSessionHasErrors('birth_date');
         $this->post('/patients', $this->data(['first_name' => '', 'last_name' => ['invalid']]))->assertSessionHasErrors(['first_name', 'last_name']);
         $this->post('/patients', $this->data(['birth_date' => '2000-02-31']))->assertSessionHasErrors('birth_date');
@@ -188,5 +192,30 @@ class PatientRegistryTest extends TestCase
         $staff->save();
         $this->actingAs($staff)->post('/patients', $this->data())->assertRedirect('/login');
         $this->assertDatabaseCount('patients', 0);
+    }
+
+    public function test_optional_guardian_validation_and_clear_without_logging_values(): void
+    {
+        $this->actingAs($this->staff());
+        foreach ([['guardian_name' => 'Fictional Guardian'], ['guardian_phone' => '000-TEST'], ['guardian_relationship' => 'Parent']] as $partial) {
+            $this->post('/patients', $this->data($partial))->assertSessionHasErrors();
+        }
+        $this->assertDatabaseCount('patients', 0);
+        $patient = $this->register([
+            'emergency_contact_name' => 'Fictional Guardian',
+            'emergency_contact_number' => '000-TEST',
+            'guardian_relationship' => 'Parent',
+            'guardian_name' => 'Fictional Guardian',
+            'guardian_phone' => '000-TEST',
+        ]);
+        $this->assertSame('Fictional Guardian', $patient->guardian_name);
+        $this->assertSame('000-TEST', $patient->guardian_phone);
+        $this->get(route('patients.show', $patient))->assertSee('Fictional Guardian')->assertSee('Parent');
+        $this->assertStringNotContainsString('Fictional Guardian', Activity::latest('id')->first()->toJson());
+        $this->put(route('patients.update', $patient), $this->data([
+            'lock_version' => 1, 'guardian_name' => '', 'guardian_relationship' => '', 'guardian_phone' => '',
+        ]))->assertSessionHasNoErrors()->assertRedirect();
+        $this->assertNull($patient->fresh()->guardian_name);
+        $this->assertSame('Fictional Guardian', $patient->fresh()->emergency_contact_name);
     }
 }

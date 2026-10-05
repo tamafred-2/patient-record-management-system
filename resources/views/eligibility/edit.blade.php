@@ -47,7 +47,7 @@
         @if($record)
             <dl class="mt-6 space-y-2 text-sm text-slate-500">
                 <div><dt class="inline font-medium">First recorded:</dt><dd class="inline">{{ $record->verifier?->name }} &middot; {{ $record->verified_at->timezone('Asia/Manila')->format('M j, Y g:i A') }}</dd></div>
-                <div><dt class="inline font-medium">Last updated:</dt><dd class="inline">{{ $record->editor?->name }} &middot; {{ $record->updated_at->timezone('Asia/Manila')->format('M j, Y g:i A') }} (Asia/Manila)</dd></div>
+                <div><dt class="inline font-medium">Last updated:</dt><dd class="inline">{{ $record->editor?->name }} &middot; {{ $record->updated_at->timezone('Asia/Manila')->format('M j, Y g:i A') }}</dd></div>
             </dl>
         @endif
         @if($canEdit)<div class="mt-6"><x-button>Save confirmation</x-button></div>@else<p class="mt-6 text-sm text-slate-600">This confirmation record is read-only.</p>@endif

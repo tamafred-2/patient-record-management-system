@@ -33,7 +33,7 @@
                 @endforeach
             </div>
         </fieldset>
-        @if($record)<p class="mt-6 text-sm text-slate-500">First recorded {{ $record->recorded_at->timezone('Asia/Manila')->format('M j, Y g:i A') }} &middot; Last updated {{ $record->updated_at->timezone('Asia/Manila')->format('M j, Y g:i A') }} (Asia/Manila)</p>@endif
+        @if($record)<p class="mt-6 text-sm text-slate-500">First recorded {{ $record->recorded_at->timezone('Asia/Manila')->format('M j, Y g:i A') }} &middot; Last updated {{ $record->updated_at->timezone('Asia/Manila')->format('M j, Y g:i A') }}</p>@endif
         @if($canEdit)<div class="mt-6"><x-button>Save vital signs</x-button></div>@else<p class="mt-6 text-sm text-slate-600">These measurements are read-only.</p>@endif
     </form>
 </x-layout>

@@ -42,7 +42,7 @@
         @forelse($prescription->dispensings as $release)
             <article class="mt-4 rounded-xl border border-slate-200 bg-white p-5">
                 <h3 class="font-semibold">Release #{{ $release->id }} &middot; {{ $release->pharmacist?->name }}</h3>
-                <p class="mt-1 text-sm text-slate-500">{{ $release->dispensed_at->timezone('Asia/Manila')->format('M j, Y g:i A') }} (Asia/Manila)</p>
+                <p class="mt-1 text-sm text-slate-500">{{ $release->dispensed_at->timezone('Asia/Manila')->format('M j, Y g:i A') }}</p>
                 <ul class="mt-3 list-inside list-disc text-sm">@foreach($release->items as $line)<li>{{ $byId[$line->prescription_item_id]->medicine_name }}: {{ $line->quantity_dispensed }}</li>@endforeach</ul>
                 @if($release->remarks)<p class="mt-3 whitespace-pre-wrap break-words text-sm">{{ $release->remarks }}</p>@endif
             </article>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
@@ -22,7 +23,7 @@ class PasswordController extends Controller
     {
         return [
             'current_password' => ['required', 'string', 'max:1024'],
-            'password' => ['required', 'string', 'confirmed', Password::min(12), 'max:72', function ($attribute, $value, $fail) {
+            'password' => ['required', 'string', 'confirmed', Password::min(8), 'max:72', function ($attribute, $value, $fail) {
                 if (str_contains($value, "\0")) {
                     $fail('The password cannot contain null characters.');
                 }
@@ -53,21 +54,30 @@ class PasswordController extends Controller
         Gate::authorize('users.manage');
         Gate::authorize('roles.manage');
         abort_if($user->is($request->user()), 403, 'Use Change password for your own account.');
-        $data = $request->validate($this->rules() + ['confirm' => ['accepted'], 'password_version' => ['required', 'integer', 'min:0']]);
-        DB::transaction(function () use ($request, $user, $data) {
-            if (! Hash::check($data['current_password'], $request->user()->fresh()->password)) {
-                throw ValidationException::withMessages(['current_password' => 'Your current password is incorrect.']);
-            }
+        $data = $request->validate([
+            'confirm' => ['accepted'], 'password_version' => ['required', 'integer', 'min:0'],
+            'password' => ['prohibited'], 'password_confirmation' => ['prohibited'],
+        ]);
+        $reset = DB::transaction(function () use ($request, $user, $data) {
             $target = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
             if ($target->password_version !== (int) $data['password_version']) {
                 throw ValidationException::withMessages(['password_version' => 'This password was already changed. Reload the user page before resetting it.']);
             }
-            $this->rotate($target, $data['password'], true);
+            $generated = Str::password(16);
+            $this->rotate($target, $generated, true);
             activity('staff')->causedBy($request->user())->performedOn($target)
                 ->withProperties(['must_change_password' => true])->log('staff.password_reset');
+
+            return ['password' => $generated, 'version' => $target->password_version];
         });
 
-        return redirect()->route('staff.edit', $user)->with('status', 'Password reset. Share the temporary password through your approved private channel. A password change is required at sign-in.');
+        $request->session()->flash('generated_reset', [
+            'target_id' => $user->id, 'actor_id' => $request->user()->id,
+            'password_version' => $reset['version'],
+            'secret' => Crypt::encryptString($reset['password']),
+        ]);
+
+        return redirect()->route('staff.edit', $user)->with('status', 'Password reset. Copy the generated temporary password below. The user must change it at sign-in.');
     }
 
     public function update(Request $request)

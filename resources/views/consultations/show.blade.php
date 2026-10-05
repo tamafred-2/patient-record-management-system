@@ -13,7 +13,7 @@
             <div><dt class="text-sm text-slate-500">Visit</dt><dd>{{ $visit->visit_number }}</dd></div>
             <div><dt class="text-sm text-slate-500">Visit date</dt><dd>{{ $visit->visit_date->format('M j, Y') }}</dd></div>
             <div><dt class="text-sm text-slate-500">Requested service</dt><dd>{{ $visit->service->name }}</dd></div>
-            <div><dt class="text-sm text-slate-500">Existing queue reference</dt><dd>{{ $visit->queue_reference ?? 'Not recorded' }}</dd></div>
+            <div><dt class="text-sm text-slate-500">Queue number</dt><dd>{{ $visit->queue_reference ?? 'Not recorded' }}</dd></div>
             <div><dt class="text-sm text-slate-500">Visit status</dt><dd>{{ $visit->status }}</dd></div>
         </dl>
     </section>
@@ -25,14 +25,14 @@
                 <div><dt class="text-sm text-slate-500">{{ $label }}</dt><dd class="mt-1 font-medium">{{ $vitals?->$field !== null ? $vitals->$field.' '.$unit : 'Not recorded' }}</dd></div>
             @endforeach
         </dl>
-        @if($vitals)<p class="mt-5 text-sm text-slate-500">Last updated {{ $vitals->updated_at->timezone('Asia/Manila')->format('M j, Y g:i A') }} (Asia/Manila). Recorded values are shown without clinical interpretation.</p>@endif
+        @if($vitals)<p class="mt-5 text-sm text-slate-500">Last updated {{ $vitals->updated_at->timezone('Asia/Manila')->format('M j, Y g:i A') }}. Recorded values are shown without clinical interpretation.</p>@endif
     </section>
     <section class="mt-6 rounded-xl border border-slate-200 bg-white p-6">
         <h2 class="text-xl font-semibold">PhilHealth confirmation</h2>
         <p class="mt-3 font-medium">{{ $confirmation?->philhealth_confirmed === true ? 'With record' : ($confirmation?->philhealth_confirmed === false ? 'No record' : 'Not checked') }}</p>
         <p class="mt-2 text-sm text-slate-600">Confirmation records whether the patient record was found in the existing system. It does not determine coverage or free services.</p>
         @if($confirmation?->remarks)<p class="mt-4 whitespace-pre-wrap break-words text-sm">{{ $confirmation->remarks }}</p>@endif
-        @if($confirmation)<p class="mt-4 text-sm text-slate-500">Last updated {{ $confirmation->updated_at->timezone('Asia/Manila')->format('M j, Y g:i A') }} (Asia/Manila)</p>@endif
+        @if($confirmation)<p class="mt-4 text-sm text-slate-500">Last updated {{ $confirmation->updated_at->timezone('Asia/Manila')->format('M j, Y g:i A') }}</p>@endif
     </section>
     <a href="{{ route('itr.edit', [$patient, $visit]) }}" class="mt-6 inline-block rounded-lg bg-emerald-800 px-5 py-3 font-semibold text-white">Open Digital ITR</a>
     @can('prescriptions.view')

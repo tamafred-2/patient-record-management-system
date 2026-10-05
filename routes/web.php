@@ -82,6 +82,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/visits', [VisitController::class, 'index'])->name('visits.index');
     Route::get('/visit-monitor/{patient}/visits/{visit}', [VisitController::class, 'monitor'])->middleware('can:visits.monitor')->name('visits.monitor');
     Route::get('/patients/{patient}/visits/create', [VisitController::class, 'create'])->name('patients.visits.create');
+    Route::get('/patients/{patient}/visits/{visit}/stub', [VisitController::class, 'stub'])->name('visits.stub');
     Route::post('/patients/{patient}/visits', [VisitController::class, 'store'])->name('patients.visits.store');
     Route::get('/patients/{patient}/visits/{visit}', [VisitController::class, 'show'])->name('patients.visits.show');
     Route::middleware('can:settings.manage')->group(function () {
@@ -93,6 +94,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('patients', PatientController::class)->except('destroy');
     Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
     Route::get('/dashboard', [DashboardController::class, '__invoke'])->name('dashboard');
+    Route::get('/dashboard/visits', [DashboardController::class, 'visits'])->name('dashboard.visits');
     Route::middleware(['can:users.manage', 'can:roles.manage'])->group(function () {
         Route::get('/staff', [StaffController::class, 'index'])->name('staff.index');
         Route::get('/staff/create', [StaffController::class, 'create'])->name('staff.create');

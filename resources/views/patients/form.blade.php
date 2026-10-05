@@ -2,7 +2,7 @@
     <a href="{{ $patient->exists ? route('patients.show', $patient) : route('patients.index') }}" class="text-sm text-emerald-800 underline">← {{ $patient->exists ? 'Patient profile' : 'Search patients' }}</a>
     <h1 class="mt-5 text-3xl font-semibold">{{ $patient->exists ? 'Edit patient profile' : 'Register patient' }}</h1>
     @if($patient->exists)<p class="mt-2 font-semibold text-emerald-800">{{ $patient->patient_number }} · {{ $patient->full_name }}</p>@endif
-    <p class="mt-3 text-slate-600">First and last names are required. Leave unknown optional details blank.</p>
+    <p class="mt-3 text-slate-600">First name, last name, date of birth, sex and address are required. Leave unknown optional details blank.</p>
     @if($errors->any())
         <div role="alert" class="mt-5 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
             <p class="font-semibold">Please review the following:</p>
@@ -29,27 +29,36 @@
         @endif
         <fieldset><legend class="mb-5 text-lg font-semibold">Patient identity</legend>
             <div class="grid gap-5 sm:grid-cols-2">
-                <x-input name="first_name" label="First name (required)" :value="$patient->first_name" maxlength="100" required />
-                <x-input name="last_name" label="Last name (required)" :value="$patient->last_name" maxlength="100" required />
+                <x-input name="first_name" label="First name" :value="$patient->first_name" maxlength="100" required />
+                <x-input name="last_name" label="Last name" :value="$patient->last_name" maxlength="100" required />
                 <x-input name="middle_name" label="Middle name (optional)" :value="$patient->middle_name" maxlength="100" />
-                <x-input name="suffix" label="Suffix (optional)" :value="$patient->suffix" maxlength="30" />
-                <x-input name="birth_date" label="Date of birth (optional)" type="date" :value="$patient->birth_date?->format('Y-m-d')" :max="now()->format('Y-m-d')" />
-                <x-input name="sex" label="Sex (optional)" :value="$patient->sex" maxlength="50" />
-                <x-input name="civil_status" label="Civil status (optional)" :value="$patient->civil_status" maxlength="50" />
+                <x-patient-select name="suffix" label="Suffix (optional)" :value="$patient->suffix" :options="['Jr.', 'Sr.', 'II', 'III', 'IV', 'V']" />
+                <x-input name="birth_date" label="Date of birth" type="date" :value="$patient->birth_date?->format('Y-m-d')" :max="now()->format('Y-m-d')" required />
+                <x-patient-select name="sex" label="Sex" :value="$patient->sex" :options="['Male', 'Female', 'Other', 'Not specified']" required />
+                <x-patient-select name="civil_status" label="Civil status (optional)" :value="$patient->civil_status" :options="['Single', 'Married', 'Widowed', 'Separated', 'Divorced', 'Other']" />
             </div>
         </fieldset>
         <fieldset><legend class="mb-5 text-lg font-semibold">Address and contact</legend>
             <div class="grid gap-5 sm:grid-cols-2">
-                <x-input name="barangay" label="Barangay (optional)" :value="$patient->barangay" maxlength="150" />
-                <x-input name="municipality" label="Municipality (optional)" :value="$patient->municipality" maxlength="150" />
-                <x-input name="province" label="Province (optional)" :value="$patient->province" maxlength="150" />
+                <x-input name="barangay" label="Barangay" :value="$patient->barangay" maxlength="150" required />
+                <x-input name="municipality" label="Municipality" :value="$patient->municipality" maxlength="150" required />
+                <x-input name="province" label="Province" :value="$patient->province" maxlength="150" required />
                 <x-input name="contact_number" label="Contact number (optional)" type="tel" :value="$patient->contact_number" maxlength="40" />
             </div>
         </fieldset>
         <fieldset><legend class="mb-5 text-lg font-semibold">Emergency contact</legend>
             <div class="grid gap-5 sm:grid-cols-2">
-                <x-input name="emergency_contact_name" label="Emergency contact name (optional)" :value="$patient->emergency_contact_name" maxlength="255" />
-                <x-input name="emergency_contact_number" label="Emergency contact number (optional)" type="tel" :value="$patient->emergency_contact_number" maxlength="40" />
+                <x-input name="emergency_contact_name" label="Name (optional)" :value="$patient->emergency_contact_name" maxlength="255" />
+                <x-input name="emergency_contact_number" label="Contact number (optional)" type="tel" :value="$patient->emergency_contact_number" maxlength="40" />
+            </div>
+        </fieldset>
+        <fieldset>
+            <legend class="mb-3 text-lg font-semibold">Guardian / contact person (optional)</legend>
+            <p class="mb-4 text-sm text-slate-600">Optional. If added, provide a name and relationship.</p>
+            <div class="grid gap-5 sm:grid-cols-2">
+                <div><x-input name="guardian_name" label="Guardian / contact name" :value="$patient->guardian_name" maxlength="255" /></div>
+                <x-input name="guardian_relationship" label="Relationship to patient" :value="$patient->guardian_relationship" maxlength="100" placeholder="For example: mother, father, sibling" />
+                <div><x-input name="guardian_phone" label="Guardian contact number (optional)" type="tel" :value="$patient->guardian_phone" maxlength="40" /></div>
             </div>
         </fieldset>
         <x-button>{{ $patient->exists ? 'Save profile' : 'Register patient' }}</x-button>

@@ -15,13 +15,14 @@ class VaccinationController extends Controller
     public function index(Request $request)
     {
         Gate::authorize('vaccinations.view');
-        $data = $request->validate(['date' => ['nullable', 'date_format:Y-m-d'], 'search' => ['nullable', 'string', 'max:100']]);
+        $data = $request->validate(['all' => ['sometimes', 'boolean'], 'date' => ['nullable', 'date_format:Y-m-d'], 'search' => ['nullable', 'string', 'max:100']]);
+        $allDates = (bool) ($data['all'] ?? false);
         $date = $data['date'] ?? now('Asia/Manila')->toDateString();
         $search = trim($data['search'] ?? '');
         $visits = Visit::vaccinationVisits()->with('patient')->withCount('vaccinationRecords')
-            ->whereDate('visit_date', $date)->searchPatientOrQueue($search)->latest('id')->paginate(20)->withQueryString();
+            ->when(! $allDates, fn ($query) => $query->whereDate('visit_date', $date))->searchPatientOrQueue($search)->latest('id')->paginate(20)->withQueryString();
 
-        return view('vaccinations.index', compact('date', 'search', 'visits'));
+        return view('vaccinations.index', compact('allDates', 'search', 'date', 'visits'));
     }
 
     public function show(Patient $patient, string $visit, ?string $record = null)

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -18,9 +19,24 @@ class Patient extends Model
     public const DEMOGRAPHICS = [
         'first_name', 'middle_name', 'last_name', 'suffix', 'birth_date', 'sex', 'civil_status',
         'contact_number', 'barangay', 'municipality', 'province', 'emergency_contact_name', 'emergency_contact_number',
+        'guardian_name', 'guardian_relationship', 'guardian_phone',
     ];
 
     protected $fillable = self::DEMOGRAPHICS;
+
+    public function scopeSearchIdentity(Builder $query, ?string $search): Builder
+    {
+        foreach (preg_split('/\s+/u', trim($search ?? ''), -1, PREG_SPLIT_NO_EMPTY) as $term) {
+            $pattern = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_strtolower($term)).'%';
+            $query->where(function (Builder $match) use ($pattern) {
+                foreach (['patient_number', 'first_name', 'middle_name', 'last_name', 'suffix'] as $field) {
+                    $match->orWhereRaw("LOWER({$field}) LIKE ? ESCAPE '!'", [$pattern]);
+                }
+            });
+        }
+
+        return $query;
+    }
 
     protected function casts(): array
     {

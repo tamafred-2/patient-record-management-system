@@ -29,9 +29,9 @@ class PrescriptionTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         $staff = User::factory()->create();
         $staff->assignRole('Information Staff');
-        $this->actingAs($staff)->post('/patients', ['first_name' => 'Fictional', 'last_name' => 'Verification'])->assertRedirect();
+        $this->actingAs($staff)->post('/patients', ['birth_date' => '2000-01-10', 'sex' => 'Female', 'barangay' => 'Example Barangay', 'municipality' => 'Calasiao', 'province' => 'Pangasinan', 'first_name' => 'Fictional', 'last_name' => 'Verification'])->assertRedirect();
         $this->patient = Patient::firstOrFail();
-        $this->post(route('patients.visits.store', $this->patient), ['service_id' => Service::first()->id, 'visit_date' => now('Asia/Manila')->toDateString()])->assertRedirect();
+        $this->post(route('patients.visits.store', $this->patient), ['service_id' => Service::first()->id, 'visit_date' => now('Asia/Manila')->toDateString(), 'queue_reference' => 'TEST-001'])->assertRedirect();
         $this->visit = Visit::firstOrFail();
         $this->officer = User::factory()->create();
         $this->officer->assignRole('Doctor / Medical Officer');
@@ -49,9 +49,42 @@ class PrescriptionTest extends TestCase
         return ['lock_version' => $version, 'items' => [['medicine_name' => 'Fictional medicine', 'dosage' => 'Example dose', 'frequency' => 'Example frequency', 'quantity_prescribed' => 5]]];
     }
 
+    public function test_quantities_are_whole_numbers_and_reuse_is_scoped_to_the_doctor_and_active_patients(): void
+    {
+        foreach (['1.5', '0', '-1', '100000000'] as $quantity) {
+            $data = $this->data();
+            $data['items'][0]['quantity_prescribed'] = $quantity;
+            $this->put($this->url(), $data)->assertSessionHasErrors('items.0.quantity_prescribed');
+        }
+        $this->assertDatabaseCount('prescriptions', 0);
+        $this->put($this->url(), $this->data())->assertSessionHasNoErrors();
+        $this->get($this->url())->assertOk()->assertViewHas('suggestions', fn ($values) => $values['dosage']->contains('Example dose'))
+            ->assertDontSee('Reuse medicine name')->assertSee('Show strength (optional) options')->assertSee('Show dosage options')->assertSee('step="1"', false)->assertSee('Other - type your own value');
+        $other = User::factory()->create();
+        $other->assignRole('Doctor / Medical Officer');
+        $this->actingAs($other)->get($this->url())->assertOk()
+            ->assertViewHas('suggestions', fn ($values) => ! $values['dosage']->contains('Example dose'));
+        $this->actingAs($this->officer);
+        $this->patient->delete();
+        // Archived patients are excluded from the history query even when another active visit is viewed.
+        $active = $this->patient->replicate();
+        $active->patient_number = 'ACTIVE-RX-TEST';
+        $active->deleted_at = null;
+        $active->save();
+        $visit = $this->visit->replicate();
+        $visit->patient_id = $active->id;
+        $visit->visit_number = 'ACTIVE-RX-VISIT';
+        $visit->save();
+        $this->get(route('prescriptions.show', [$active, $visit]))->assertOk()
+            ->assertViewHas('suggestions', fn ($values) => ! $values['dosage']->contains('Example dose'));
+    }
+
     public function test_doctor_saves_reviews_updates_and_issues_immutable_prescription(): void
     {
-        $this->get($this->url())->assertOk()->assertSee('New prescription draft');
+        $this->get($this->url())->assertOk()->assertSee('New prescription draft')
+            ->assertViewHas('suggestions', fn ($values) => $values['strength']->contains('100 mg')
+                && $values['dosage']->contains('1 tablet') && $values['frequency']->contains('3 times a day')
+                && $values['duration']->contains('1 week') && $values['duration']->contains('1 month'));
         $this->put($this->url(), $this->data())->assertSessionHasNoErrors();
         $record = Prescription::firstOrFail();
         $this->assertEquals($this->visit->id, $record->visit_id);
