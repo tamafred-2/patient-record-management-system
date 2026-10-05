@@ -1,6 +1,6 @@
 <x-layout title="Audit log">
     <h1 class="text-3xl font-semibold">Audit log</h1>
-    <p class="mt-2 text-slate-600">User activity and record references. Dates and times use Asia/Manila.</p>
+    <p class="mt-2 text-slate-600">User activity and record references.</p>
     @if($errors->any())<x-alert type="error" class="mt-5">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</x-alert>@endif
     <form method="GET" class="my-6 grid gap-4 rounded-xl border border-slate-200 bg-white p-5 sm:grid-cols-2 lg:grid-cols-4">
         <div><label for="from" class="mb-2 block text-sm font-medium">From date</label><input type="date" id="from" name="from" value="{{ old('from',$filters['from']??'') }}" class="w-full rounded-lg border border-slate-300 p-3"></div>

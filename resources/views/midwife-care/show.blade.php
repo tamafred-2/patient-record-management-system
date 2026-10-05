@@ -39,7 +39,7 @@
                     @if($entry->$field)<div><h4 class="text-sm font-semibold">{{ $label }}</h4><p class="whitespace-pre-wrap break-words text-sm">{{ $entry->$field }}</p></div>@endif
                 @endforeach
                 <p class="text-sm">Follow-up date: {{ $entry->follow_up_on?->format('M j, Y') ?? 'Not recorded' }}</p>
-                <p class="text-xs text-slate-500">Entered by {{ $entry->recorder?->name }} &middot; Last saved by {{ $entry->editor?->name }} on {{ $entry->updated_at->timezone('Asia/Manila')->format('M j, Y g:i A') }} (Asia/Manila)</p>
+                <p class="text-xs text-slate-500">Entered by {{ $entry->recorder?->name }} &middot; Last saved by {{ $entry->editor?->name }} on {{ $entry->updated_at->timezone('Asia/Manila')->format('M j, Y g:i A') }}</p>
                 @if($canEdit && $entry->visit_id === $visit->id)<a class="inline-block font-semibold text-emerald-800 underline" href="{{ route('midwife-care.edit', [$patient, $visit, $entry]) }}">Edit care entry</a>@endif
             </article>
         @empty<p class="text-slate-500">No Midwife care records yet.</p>@endforelse

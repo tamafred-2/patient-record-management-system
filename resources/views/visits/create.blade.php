@@ -17,8 +17,9 @@
                 @error('service_id')<p role="alert" class="mt-2 text-sm text-red-700">{{ $message }}</p>@enderror
             </div>
             <x-input name="visit_date" label="Visit date (required)" type="date" :value="now('Asia/Manila')->toDateString()" :max="now('Asia/Manila')->toDateString()" required />
-            <x-input name="queue_reference" label="Existing queue reference (required)" maxlength="100" placeholder="e.g. CO-027" required />
-            <p class="text-sm text-slate-500">Enter the queue number issued with the patient's form. This system does not issue queue numbers.</p>
+            <input type="hidden" name="queue_token" value="{{ $reservation->token }}">
+            <div><label for="generated-queue" class="mb-2 block text-sm font-semibold">Queue number (auto-generated)</label><input id="generated-queue" value="{{ $reservation->queue_reference }}" readonly aria-describedby="queue-help" class="w-full rounded-lg border border-slate-300 bg-slate-50 p-3 font-semibold text-emerald-900"></div>
+            <p id="queue-help" class="text-sm text-slate-500">Assigned automatically and cannot be edited. Save the visit, then select Print / Reprint stub.</p>
             <x-button>Start visit</x-button>
         </form>
     @endif

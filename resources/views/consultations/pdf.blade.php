@@ -7,4 +7,4 @@
 @foreach(['medicine_details'=>'Current medicine details','lmp'=>'LMP','assessment'=>'Assessment','planning'=>'Planning','remarks'=>'Remarks'] as $field=>$label)<h2>{{ $label }}</h2><p>{{ $field === 'lmp' ? ($visit->treatmentRecord->lmp?->format('Y-m-d') ?? 'Not recorded') : ($visit->treatmentRecord->$field ?? 'Not recorded') }}</p>@endforeach
 <h2>Doctor-entered diagnoses</h2><p>{{ implode("; ", $visit->treatmentRecord->diagnoses ?? []) ?: "Not recorded" }}</p>
 @else<p>No ITR recorded.</p>@endif
-<p>Generated {{ now('Asia/Manila')->format('Y-m-d H:i') }} (Asia/Manila). Current profile and measurements are shown; ITR objective snapshots remain in the application.</p></body></html>
+<p>Generated {{ now('Asia/Manila')->format('Y-m-d H:i') }}. Current profile and measurements are shown; ITR objective snapshots remain in the application.</p></body></html>

@@ -29,7 +29,7 @@ class DiagnosisLabelsTest extends TestCase
         $this->assertSame(['fictional condition alpha'], app(DiagnosisLabels::class)->suggestions());
         $visit = Patient::where('patient_number', 'ANALYTICS-PATIENT-Alpha')->firstOrFail()->visits()->firstOrFail();
         $url = route('itr.edit', [$visit->patient, $visit]);
-        $this->actingAs(User::where('email', 'doctor@rhu.test')->firstOrFail())->get($url)->assertOk()->assertSee('Previously recorded diagnosis')->assertViewHas('diagnosisSuggestions', ['fictional condition alpha']);
+        $this->actingAs(User::where('email', 'doctor@rhu.test')->firstOrFail())->get($url)->assertOk()->assertSee('Choose a diagnosis')->assertViewHas('diagnosisSuggestions', ['fictional condition alpha']);
         foreach (['admin', 'nurse', 'pharmacist', 'information', 'medtech', 'midwife'] as $role) {
             $this->actingAs(User::where('email', $role.'@rhu.test')->firstOrFail())->get($url)->assertForbidden()->assertDontSee('fictional condition alpha');
         }

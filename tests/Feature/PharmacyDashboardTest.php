@@ -19,10 +19,11 @@ class PharmacyDashboardTest extends TestCase
         $visit = Visit::firstOrFail();
         $visit->forceFill(['queue_reference' => 'TEST-PHARM-042', 'visit_date' => now('Asia/Manila')->toDateString()])->save();
         $this->actingAs(User::where('email', 'pharmacist@rhu.test')->firstOrFail());
-        $this->get('/dashboard')->assertOk()->assertSee("Today's pharmacy", false)
+        $this->get('/dashboard')->assertOk()->assertSee("Today's pharmacy")
             ->assertSee('DEMO-RX-1')->assertSee('TEST-PHARM-042')
             ->assertSee(route('pharmacy.show', [$visit->patient, $visit]), false)
             ->assertDontSee('Patient name or queue number');
+        $this->getJson('/dashboard/visits?section=pharmacy')->assertOk()->assertSee('DEMO-RX-1');
         $visit->visit_date = now('Asia/Manila')->subDay()->toDateString();
         $visit->save();
         $this->get('/dashboard')->assertDontSee('DEMO-RX-1')->assertSee('No issued prescriptions');
@@ -32,6 +33,7 @@ class PharmacyDashboardTest extends TestCase
         $rx->status = 'DRAFT';
         $rx->save();
         $this->get('/dashboard')->assertDontSee('DEMO-RX-1');
+        $this->getJson('/dashboard/visits?section=pharmacy')->assertOk()->assertDontSee('DEMO-RX-1');
         $rx->status = 'ISSUED';
         $rx->save();
         foreach (['admin', 'doctor', 'information', 'nurse', 'medtech', 'midwife'] as $role) {

@@ -138,12 +138,12 @@ class WeekThreeTest extends TestCase
     public function test_dashboard_modules_follow_roles(): void
     {
         $this->asRole('doctor');
-        $this->get('/dashboard')->assertOk()->assertSee('Doctor visits')->assertDontSee('User Accounts')->assertDontSee('Generate report');
+        $this->get('/dashboard')->assertOk()->assertSee("Today's summary", false)->assertSee('ITRs saved')->assertSee('Without saved ITR')->assertDontSee('User Accounts');
         $this->asRole('pharmacist');
-        $this->get('/dashboard')->assertOk()->assertSee('Record medicine releases')->assertDontSee('Doctor visits');
+        $this->get('/dashboard')->assertOk()->assertSee("Today's summary", false)->assertSee('Issued prescriptions')->assertSee('Awaiting first release')->assertDontSee('Doctor visits');
         $this->asRole('admin');
-        $this->get('/dashboard')->assertOk()->assertSee('Reports')->assertSee('User Accounts')->assertDontSee('Doctor visits');
+        $this->get('/dashboard')->assertOk()->assertSee("Today's summary", false)->assertSee('Visits today')->assertDontSee('Open today')->assertDontSee('Completed today')->assertSee('All visits')->assertSee('User Accounts')->assertDontSee('Doctor visits');
         $this->asRole('midwife');
-        $this->get('/dashboard')->assertOk()->assertSee('Midwife care')->assertSee('Vaccination');
+        $this->get('/dashboard')->assertOk()->assertSee("Today's summary", false)->assertSee('Midwife care records')->assertSee('Vaccinations recorded');
     }
 }

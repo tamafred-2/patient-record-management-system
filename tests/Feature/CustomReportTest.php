@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\Visit;
+use Carbon\CarbonImmutable;
 use Database\Seeders\WorkflowDemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
@@ -53,7 +54,7 @@ class CustomReportTest extends TestCase
 
     public function test_presets_and_invalid_export_options(): void
     {
-        $this->travelTo(now()->setDate(2026, 9, 26));
+        $this->travelTo(CarbonImmutable::parse('2026-09-26 12:00:00', 'Asia/Manila'));
         foreach (['today' => '2026-09-26', 'week' => '2026-09-21', 'month' => '2026-09-01'] as $period => $from) {
             $response = $this->get('/reports?period='.$period)->assertOk();
             $this->assertSame($from, $response->viewData('from'));

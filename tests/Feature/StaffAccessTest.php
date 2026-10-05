@@ -35,7 +35,7 @@ class StaffAccessTest extends TestCase
 
     private function accountData(): array
     {
-        return ['name' => 'Fictional Staff', 'email' => 'new.staff@example.test', 'password' => 'fictional-password-123', 'password_confirmation' => 'fictional-password-123', 'roles' => ['Nurse', 'Midwife']];
+        return ['name' => 'Fictional Staff', 'email' => 'new.staff@example.test', 'password' => 'Test123!', 'password_confirmation' => 'Test123!', 'roles' => ['Nurse', 'Midwife']];
     }
 
     public function test_guest_can_view_login_but_cannot_access_staff_routes(): void
@@ -172,10 +172,21 @@ class StaffAccessTest extends TestCase
         $this->assertDatabaseCount('activity_log', 2);
     }
 
-    public function test_admin_cannot_change_own_access(): void
+    public function test_admin_can_manage_own_additional_roles_without_locking_themselves_out(): void
     {
         $admin = $this->staff('System Admin');
-        $this->actingAs($admin)->patch(route('staff.update', $admin), ['is_active' => false, 'roles' => ['Nurse']])->assertForbidden();
+        $this->actingAs($admin)->get(route('staff.edit', $admin))->assertOk()->assertSee('Your own account must stay active');
+        $this->patch(route('staff.update', $admin), ['is_active' => true, 'roles' => ['System Admin', 'Nurse']])->assertSessionHasNoErrors()->assertRedirect('/staff');
+        $this->assertTrue($admin->fresh()->hasRole('Nurse'));
+        $audit = Activity::where('description', 'staff.access_updated')->latest('id')->firstOrFail();
+        $this->assertEquals($admin->id, $audit->causer_id);
+        $this->assertEquals($admin->id, $audit->subject_id);
+        $this->get('/staff')->assertOk();
+        $this->patch(route('staff.update', $admin), ['is_active' => false, 'roles' => ['System Admin', 'Nurse']])->assertSessionHasErrors('is_active');
+        $this->patch(route('staff.update', $admin), ['is_active' => true, 'roles' => ['Nurse']])->assertSessionHasErrors('roles');
+        $this->assertSame(1, Activity::where('description', 'staff.access_updated')->count());
+        $this->patch(route('staff.update', $admin), ['is_active' => true, 'roles' => ['System Admin']])->assertSessionHasNoErrors()->assertRedirect('/staff');
+        $this->assertFalse($admin->fresh()->hasRole('Nurse'));
         $this->assertTrue($admin->fresh()->is_active);
         $this->assertTrue($admin->fresh()->hasRole('System Admin'));
     }
@@ -184,7 +195,7 @@ class StaffAccessTest extends TestCase
     {
         $admin = $this->staff('System Admin');
         $this->actingAs($admin)->post('/staff', [...$this->accountData(), 'roles' => ['Invented Role']])->assertSessionHasErrors('roles.0');
-        $this->post('/staff', [...$this->accountData(), 'password' => 'short'])->assertSessionHasErrors('password')->assertSessionMissing('_old_input.password');
+        $this->post('/staff', [...$this->accountData(), 'password' => '1234567', 'password_confirmation' => '1234567'])->assertSessionHasErrors('password')->assertSessionMissing('_old_input.password');
         $this->post('/staff', [...$this->accountData(), 'email' => strtoupper($admin->email)])->assertSessionHasErrors('email');
         $target = $this->staff();
         $this->patch(route('staff.update', $target), ['is_active' => 'invalid', 'roles' => []])->assertSessionHasErrors(['is_active', 'roles']);
@@ -208,8 +219,8 @@ class StaffAccessTest extends TestCase
     {
         $this->artisan('staff:create-admin')->expectsQuestion('Name', 'Fictional Admin')
             ->expectsQuestion('Email', 'admin@example.test')
-            ->expectsQuestion('Password (at least 12 characters)', 'fictional-password-123')
-            ->expectsQuestion('Confirm password', 'fictional-password-123')->assertSuccessful();
+            ->expectsQuestion('Password (at least 8 characters)', 'Test123!')
+            ->expectsQuestion('Confirm password', 'Test123!')->assertSuccessful();
         $user = User::where('email', 'admin@example.test')->firstOrFail();
         $this->assertTrue($user->is_active);
         $this->assertTrue($user->hasRole('System Admin'));
@@ -243,8 +254,8 @@ class StaffAccessTest extends TestCase
     {
         $this->artisan('staff:create-admin')->expectsQuestion('Name', 'Fictional Admin')
             ->expectsQuestion('Email', 'admin@example.test')
-            ->expectsQuestion('Password (at least 12 characters)', 'short')
-            ->expectsQuestion('Confirm password', 'short')->assertFailed();
+            ->expectsQuestion('Password (at least 8 characters)', '1234567')
+            ->expectsQuestion('Confirm password', '1234567')->assertFailed();
         $this->assertDatabaseCount('users', 0);
     }
 

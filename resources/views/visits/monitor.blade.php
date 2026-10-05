@@ -12,7 +12,7 @@
             <div><dt class="text-sm text-slate-500">Queue reference</dt><dd>{{ $visit->queue_reference ?? 'Not recorded' }}</dd></div>
             <div><dt class="text-sm text-slate-500">Status</dt><dd class="font-semibold">{{ $visit->status }}</dd></div>
             <div><dt class="text-sm text-slate-500">Visit registered by</dt><dd>{{ $creator?->name ?? 'Not recorded' }}</dd></div>
-            <div><dt class="text-sm text-slate-500">Registered at (Asia/Manila)</dt><dd>{{ $visit->created_at?->timezone('Asia/Manila')->format('M j, Y g:i:s A') ?? 'Not recorded' }}</dd></div>
+            <div><dt class="text-sm text-slate-500">Registered at</dt><dd>{{ $visit->created_at?->timezone('Asia/Manila')->format('M j, Y g:i:s A') ?? 'Not recorded' }}</dd></div>
         </dl>
     </section>
     <section class="mt-6 rounded-xl border border-slate-200 bg-white p-6">
@@ -20,7 +20,7 @@
         @if($visit->status === 'COMPLETED')
             <dl class="mt-5 grid gap-5 sm:grid-cols-2">
                 <div><dt class="text-sm text-slate-500">Completed by</dt><dd>{{ $visit->completedBy?->name ?? 'Not recorded' }}</dd></div>
-                <div><dt class="text-sm text-slate-500">Completed at (Asia/Manila)</dt><dd>{{ $visit->completed_at?->timezone('Asia/Manila')->format('M j, Y g:i:s A') ?? 'Not recorded' }}</dd></div>
+                <div><dt class="text-sm text-slate-500">Completed at</dt><dd>{{ $visit->completed_at?->timezone('Asia/Manila')->format('M j, Y g:i:s A') ?? 'Not recorded' }}</dd></div>
                 <div class="min-w-0 sm:col-span-2"><dt class="text-sm text-slate-500">Completion remarks</dt><dd class="mt-2 whitespace-pre-wrap break-words">{{ $visit->completion_remarks ?: 'No completion remarks recorded.' }}</dd></div>
             </dl>
         @else

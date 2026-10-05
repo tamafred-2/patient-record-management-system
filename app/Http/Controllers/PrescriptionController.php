@@ -16,7 +16,29 @@ class PrescriptionController extends Controller
         Gate::authorize('prescriptions.view');
         $visit = $patient->visits()->with(['treatmentRecord', 'prescription.items', 'prescription.doctor'])->findOrFail($visit);
 
-        return view('prescriptions.show', compact('patient', 'visit'));
+        $suggestions = [];
+        // Entry shortcuts only: no medicine-specific recommendations or default selection.
+        $presets = [
+            'strength' => ['5 mg', '10 mg', '20 mg', '50 mg', '100 mg', '250 mg', '500 mg', '1 g'],
+            'dosage' => ['1 tablet', '2 tablets', '1 capsule', '2 capsules', '2.5 mL', '5 mL', '10 mL'],
+            'frequency' => ['Once a day', '2 times a day', '3 times a day', '4 times a day', 'Once a week'],
+            'duration' => ['1 day', '3 days', '5 days', '7 days', '1 week', '2 weeks', '1 month'],
+        ];
+        foreach (['strength', 'dosage', 'frequency', 'duration'] as $field) {
+            $suggestions[$field] = DB::table('prescription_items')
+                ->join('prescriptions', 'prescriptions.id', '=', 'prescription_items.prescription_id')
+                ->join('visits', 'visits.id', '=', 'prescriptions.visit_id')
+                ->join('patients', 'patients.id', '=', 'visits.patient_id')
+                ->where('prescriptions.doctor_id', auth()->id())
+                ->whereNull('patients.deleted_at')
+                ->whereNotNull('prescription_items.'.$field)
+                ->where('prescription_items.'.$field, '!=', '')
+                ->distinct()->orderBy('prescription_items.'.$field)->limit(100)
+                ->pluck('prescription_items.'.$field);
+            $suggestions[$field] = collect($presets[$field])->merge($suggestions[$field])->unique()->values();
+        }
+
+        return view('prescriptions.show', compact('patient', 'visit', 'suggestions'));
     }
 
     public function save(Request $request, Patient $patient, string $visit)
@@ -34,7 +56,7 @@ class PrescriptionController extends Controller
             'items.*.frequency' => ['required', 'string', 'max:200'],
             'items.*.duration' => ['nullable', 'string', 'max:200'],
             'items.*.instructions' => ['nullable', 'string', 'max:1000'],
-            'items.*.quantity_prescribed' => ['required', 'numeric', 'gt:0', 'max:99999999.99', 'decimal:0,2'],
+            'items.*.quantity_prescribed' => ['required', 'integer', 'min:1', 'max:99999999'],
         ];
         foreach (['patient_id', 'visit_id', 'treatment_record_id', 'doctor_id', 'status', 'prescribed_at', 'prescription_number'] as $field) {
             $rules[$field] = ['prohibited'];

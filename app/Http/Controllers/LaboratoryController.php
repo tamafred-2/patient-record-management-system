@@ -16,11 +16,14 @@ class LaboratoryController extends Controller
     public function index(Request $request)
     {
         Gate::authorize('laboratory.view');
-        $data = $request->validate(['date' => ['nullable', 'date_format:Y-m-d']]);
+        $data = $request->validate(['all' => ['sometimes', 'boolean'], 'date' => ['nullable', 'date_format:Y-m-d'], 'search' => ['nullable', 'string', 'max:100'], 'record' => ['nullable', Rule::in(['all', 'with_records'])]]);
+        $allDates = (bool) ($data['all'] ?? false);
         $date = $data['date'] ?? now('Asia/Manila')->toDateString();
-        $visits = Visit::with(['patient', 'service'])->withCount('laboratoryRecords')->whereHas('patient')->whereDate('visit_date', $date)->latest('id')->paginate(20)->withQueryString();
+        $search = trim($data['search'] ?? '');
+        $record = $data['record'] ?? 'all';
+        $visits = Visit::with(['patient', 'service'])->withCount('laboratoryRecords')->whereHas('patient')->when($record === 'with_records', fn ($query) => $query->whereHas('laboratoryRecords'))->when(! $allDates, fn ($query) => $query->whereDate('visit_date', $date))->searchPatientOrQueue($search)->latest('id')->paginate(20)->withQueryString();
 
-        return view('laboratory.index', compact('date', 'visits'));
+        return view('laboratory.index', compact('allDates', 'search', 'date', 'visits', 'record'));
     }
 
     public function show(Patient $patient, string $visit)
@@ -46,18 +49,46 @@ class LaboratoryController extends Controller
         Gate::authorize('laboratory.view');
         Gate::authorize('laboratory.record');
         $visit = $patient->visits()->findOrFail($visit);
-        if ($record !== null) {
-            $visit->laboratoryRecords()->findOrFail($record);
+        $existing = $record === null ? null : $visit->laboratoryRecords()->findOrFail($record);
+        $tests = array_merge(...array_values(config('laboratory.tests')));
+        if ($existing && ! in_array($existing->test_name, $tests, true)) {
+            $tests[] = $existing->test_name;
+        }
+        // Unreported template components must not become fabricated results.
+        $rows = $request->input('result_rows');
+        if (is_array($rows) && count($rows) <= 30) {
+            $request->merge(['result_rows' => array_values(array_filter($rows, function ($row) {
+                if (! is_array($row)) {
+                    return true;
+                }
+                foreach (['value', 'unit', 'reference_range', 'flag'] as $key) {
+                    $value = $row[$key] ?? '';
+                    if (! is_string($value) || trim($value) !== '') {
+                        return true;
+                    }
+                }
+
+                return false;
+            }))]);
         }
         $rules = [
-            'test_name' => ['required', 'string', 'max:200'],
-            'availability_status' => ['required', Rule::in(array_keys(LaboratoryRecord::STATUSES))],
+            'test_name' => ['required', 'string', Rule::in($tests)],
+            'availability_status' => ['required', Rule::in($record === null ? ['PENDING', 'EXTERNAL_ADVISED'] : array_keys(LaboratoryRecord::STATUSES))],
             'notes' => ['nullable', 'string', 'max:1000'],
             'external_advice' => ['nullable', 'required_if:availability_status,EXTERNAL_ADVISED', 'prohibited_unless:availability_status,EXTERNAL_ADVISED', 'string', 'max:1000'],
+            'result' => ['prohibited'],
+            'result_rows' => ['nullable', 'required_if:availability_status,PERFORMED_RHU', 'prohibited_unless:availability_status,PERFORMED_RHU', 'array', 'min:1', 'max:30'],
+            'result_rows.*' => ['array:measurement,value,unit,reference_range,flag'],
+            'result_rows.*.measurement' => ['required', 'string', 'max:150'],
+            'result_rows.*.value' => ['required', 'string', 'max:500'],
+            'result_rows.*.unit' => ['nullable', 'string', 'max:50'],
+            'result_rows.*.reference_range' => ['nullable', 'string', 'max:200'],
+            'result_rows.*.flag' => ['nullable', Rule::in(['Normal', 'High', 'Low', 'Abnormal'])],
+            'specimen' => ['nullable', 'prohibited_unless:availability_status,PERFORMED_RHU', 'string', 'max:200'],
             'lock_version' => ['required', 'integer', 'min:0'],
             'submission_token' => $record === null ? ['required', 'uuid'] : ['prohibited'],
         ];
-        foreach (['patient_id', 'visit_id', 'created_by', 'updated_by', 'performed_by', 'performed_at', 'result', 'result_notes'] as $field) {
+        foreach (['patient_id', 'visit_id', 'created_by', 'updated_by', 'performed_by', 'performed_at', 'completed_at', 'result_notes'] as $field) {
             $rules[$field] = ['prohibited'];
         }
         $data = $request->validate($rules);
@@ -80,10 +111,18 @@ class LaboratoryController extends Controller
                 $entry->created_by = $request->user()->id;
                 $entry->submission_token = $data['submission_token'];
             }
+            if ($entry->exists && $entry->availability_status === 'PERFORMED_RHU' && $data['availability_status'] !== 'PERFORMED_RHU') {
+                throw ValidationException::withMessages(['availability_status' => 'Completed records can have results corrected, but cannot return to pending or external advice.']);
+            }
             $entry->test_name = $data['test_name'];
             $entry->availability_status = $data['availability_status'];
             $entry->notes = $data['notes'] ?? null;
             $entry->external_advice = $data['availability_status'] === 'EXTERNAL_ADVISED' ? $data['external_advice'] : null;
+            $entry->result_rows = $data['availability_status'] === 'PERFORMED_RHU' ? $data['result_rows'] : null;
+            $entry->specimen = $data['availability_status'] === 'PERFORMED_RHU' ? ($data['specimen'] ?? null) : null;
+            if ($data['availability_status'] === 'PERFORMED_RHU') {
+                $entry->completed_at ??= now();
+            }
             $entry->updated_by = $request->user()->id;
             $entry->lock_version = (int) $data['lock_version'] + 1;
             $entry->save();

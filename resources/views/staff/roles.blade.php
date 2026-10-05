@@ -2,8 +2,10 @@
     <legend class="mb-3 text-sm font-semibold">Roles (select at least one)</legend>
     <div class="grid gap-3 sm:grid-cols-2">
         @foreach($roles as $role)
+            @php($locked = ($lockAdminRole ?? false) && $role->name === 'System Admin')
+            @if($locked)<input type="hidden" name="roles[]" value="System Admin">@endif
             <label class="flex items-center gap-3 rounded-lg border border-slate-200 p-3 text-sm">
-                <input type="checkbox" name="roles[]" value="{{ $role->name }}" @checked(in_array($role->name, (array) old('roles', $selectedRoles ?? []))) class="h-4 w-4 accent-emerald-800">{{ $role->name }}
+                <input type="checkbox" name="roles[]" value="{{ $role->name }}" @checked($locked || in_array($role->name, (array) old('roles', $selectedRoles ?? []))) @disabled($locked) class="h-4 w-4 accent-emerald-800">{{ $role->name }}
             </label>
         @endforeach
     </div>

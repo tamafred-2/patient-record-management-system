@@ -11,7 +11,7 @@
         <input type="hidden" name="interval" value="{{ $interval }}">
         <x-button>Update analytics</x-button>
     </form>
-    <p class="mb-6 text-sm text-slate-600">Grouped by visit date (Asia/Manila), including both range endpoints. Archived patients are excluded. Counts reflect current record states for those visits, not the dates users entered them.</p>
+    <p class="mb-6 text-sm text-slate-600">Grouped by visit date, including both range endpoints. Archived patients are excluded. Counts reflect current record states for those visits, not the dates users entered them.</p>
     @if($trend)
         <section class="mb-6 min-w-0 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6" x-data="{ hover: null, pinned: null, get selected() { return this.pinned ?? this.hover; } }" @keydown.escape="hover = null; pinned = null">
             <div class="flex flex-wrap items-center justify-between gap-3">
@@ -95,10 +95,40 @@
     @endif
     <div class="grid gap-6 lg:grid-cols-2">
         @forelse($panels as $title=>$rows)
-            <x-analytics-card :title="$title">
-                <x-slot:chart><x-analytics-bars :rows="$rows" :label="$title" /></x-slot:chart>
+            <?php
+                $comparison = null;
+                $chartRows = $rows;
+                if ($title === 'Patient trends') {
+                    $periodDays = (int) \Carbon\CarbonImmutable::parse($from)->diffInDays(\Carbon\CarbonImmutable::parse($to)) + 1;
+                    $previousStart = \Carbon\CarbonImmutable::parse($from)->subDays($periodDays)->toDateString();
+                    $previousEnd = \Carbon\CarbonImmutable::parse($from)->subDay()->toDateString();
+                    $change = $rows['Change in visit count'];
+                    $comparison = 'Selected: '.$from.' to '.$to.' ('.number_format($rows['Visits']).' visits). Previous: '.$previousStart.' to '.$previousEnd.' ('.number_format($rows['Visits in preceding equal period']).' visits). '.($change === 0 ? 'No change in visit count.' : number_format(abs($change)).($change < 0 ? ' fewer' : ' more').' visits than the previous period.');
+                    $chartRows = array_diff_key($rows, array_flip(['Visits in preceding equal period', 'Change in visit count']));
+                }
+            ?>
+            <x-analytics-card :title="$title" :description="$comparison">
+                <x-slot:chart>
+                    @if($title === 'Patient trends' && $rows['Visits'] === 0)
+                        <p class="mb-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">No visits recorded in the selected date range. Previous-period visits are shown only for comparison.</p>
+                    @endif
+                    <x-analytics-bars :rows="$chartRows" :label="$title" />
+                </x-slot:chart>
                 <x-slot:counts>
-                <dl class="mt-4 space-y-4">@forelse($rows as $label=>$value)<div class="flex items-center justify-between gap-4 border-b border-slate-100 pb-3"><dt class="text-sm text-slate-600">{{ $label }}</dt><dd class="text-xl font-semibold tabular-nums text-emerald-900">{{ number_format($value) }}</dd></div>@empty<p class="text-sm text-slate-500">No records in this date range.</p>@endforelse</dl></x-slot:counts>
+                <dl class="mt-4 space-y-4">
+                    @forelse($rows as $label=>$value)
+                        <div class="flex items-center justify-between gap-4 border-b border-slate-100 pb-3">
+                            <dt class="text-sm text-slate-600">{{ $label === 'Change in visit count' ? 'Compared with previous period' : $label }}</dt>
+                            <dd class="text-right text-xl font-semibold tabular-nums text-emerald-900">
+                                @if($label === 'Change in visit count')
+                                    <span class="text-base">{{ $value == 0 ? 'No change' : number_format(abs($value)).($value < 0 ? ' fewer visits' : ' more visits') }}</span>
+                                @else
+                                    {{ number_format($value) }}
+                                @endif
+                            </dd>
+                        </div>
+                    @empty<p class="text-sm text-slate-500">No records in this date range.</p>@endforelse
+                </dl></x-slot:counts>
             </x-analytics-card>
         @empty<p class="text-slate-600">No analytics module is assigned to your account.</p>@endforelse
     </div>

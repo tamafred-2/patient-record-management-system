@@ -31,9 +31,7 @@ class RolePermissionSeeder extends Seeder
         foreach (self::ROLES as $name) {
             $role = Role::findOrCreate($name, 'web');
             $role->givePermissionTo('dashboard.view');
-            if ($name !== 'Midwife') {
-                $role->givePermissionTo('analytics.view');
-            }
+            $role->givePermissionTo('analytics.view');
             if ($name === 'System Admin') {
                 $role->givePermissionTo(['analytics.overview', 'visits.monitor']);
                 $role->givePermissionTo(['users.manage', 'roles.manage', 'settings.manage', 'eligibility.view', 'eligibility.verify', 'audit.view', 'reports.view', 'reports.export']);

@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
 
 class StaffController extends Controller
@@ -30,7 +32,7 @@ class StaffController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'confirmed', Password::min(12), 'max:72'],
+            'password' => ['required', 'confirmed', Password::min(8), 'max:72'],
             'roles' => ['required', 'array', 'min:1'],
             'roles.*' => ['required', 'string', 'distinct', Rule::exists('roles', 'name')->where('guard_name', 'web')],
         ]);
@@ -48,14 +50,20 @@ class StaffController extends Controller
         return redirect()->route('staff.index')->with('status', 'User account created. Share credentials through your approved private channel.');
     }
 
-    public function edit(User $user)
+    public function edit(Request $request, User $user)
     {
-        return view('staff.edit', ['staff' => $user->load('roles'), 'roles' => Role::where('guard_name', 'web')->orderBy('name')->get()]);
+        $generatedPassword = null;
+        $reset = $request->session()->pull('generated_reset');
+        if ($reset && $reset['target_id'] === $user->id && $reset['actor_id'] === $request->user()->id
+            && $reset['password_version'] === $user->password_version) {
+            $generatedPassword = Crypt::decryptString($reset['secret']);
+        }
+
+        return view('staff.edit', ['generatedPassword' => $generatedPassword, 'staff' => $user->load('roles'), 'roles' => Role::where('guard_name', 'web')->orderBy('name')->get()]);
     }
 
     public function update(Request $request, User $user)
     {
-        abort_if($user->is($request->user()), 403, 'You cannot change your own roles or account status.');
         $data = $request->validate([
             'is_active' => ['required', 'boolean'],
             'roles' => ['required', 'array', 'min:1'],
@@ -63,6 +71,15 @@ class StaffController extends Controller
         ]);
 
         DB::transaction(function () use ($data, $user, $request) {
+            $user = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            if ($user->is($request->user())) {
+                if (! $data['is_active']) {
+                    throw ValidationException::withMessages(['is_active' => 'Your own account must remain active.']);
+                }
+                if ($user->hasRole('System Admin') && ! in_array('System Admin', $data['roles'], true)) {
+                    throw ValidationException::withMessages(['roles' => 'Keep System Admin assigned to your own account.']);
+                }
+            }
             $before = ['roles' => $user->getRoleNames()->all(), 'is_active' => $user->is_active];
             $user->is_active = (bool) $data['is_active'];
             $user->save();

@@ -57,6 +57,7 @@ class AnalyticsTest extends TestCase
             'doctor' => ['Consultation records', 'Supporting records', 'Prescription activity'],
             'medtech' => ['Laboratory activity'],
             'pharmacist' => ['Prescription activity'],
+            'midwife' => ['Midwife care activity', 'Vaccination activity'],
         ];
         foreach ($allowed as $role => $sections) {
             $this->loginAs($role);
@@ -81,7 +82,8 @@ class AnalyticsTest extends TestCase
     {
         $this->get('/analytics')->assertRedirect('/login');
         $this->loginAs('midwife');
-        $this->get('/analytics')->assertForbidden();
+        $this->get('/analytics')->assertOk()->assertSee('Midwife care activity')->assertSee('Vaccination activity')
+            ->assertDontSee('Patient trends')->assertDontSee('Initial assessment')->assertDontSee('Laboratory activity');
         $this->loginAs('admin');
         foreach (['from=2026-02-31', 'from=2026-09-25&to=2026-09-01', 'from=2020-01-01&to=2026-01-01'] as $query) {
             $this->get('/analytics?'.$query)->assertSessionHasErrors();

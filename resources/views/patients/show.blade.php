@@ -13,6 +13,14 @@
             @endforeach
         </dl>
     </section>
+    <section class="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+        <h2 class="text-lg font-semibold">Guardian / contact person</h2>
+        <dl class="mt-4 grid gap-4 sm:grid-cols-3">
+            @foreach(['guardian_name' => 'Name', 'guardian_relationship' => 'Relationship', 'guardian_phone' => 'Contact number'] as $field => $label)
+                <div><dt class="text-sm text-slate-500">{{ $label }}</dt><dd class="break-words">{{ $patient->$field ?? 'Not recorded' }}</dd></div>
+            @endforeach
+        </dl>
+    </section>
     @if($visits !== null)
         <section class="mt-6 rounded-xl border border-slate-200 bg-white p-6">
             <div class="mb-5 flex items-center justify-between gap-3"><h2 class="text-lg font-semibold">Visit history</h2>

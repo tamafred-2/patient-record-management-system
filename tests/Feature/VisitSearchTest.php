@@ -29,7 +29,7 @@ class VisitSearchTest extends TestCase
             $this->get(route($route, ['search' => '%']))->assertDontSee($visit->visit_number);
             $this->get(route($route, ['search' => 'SEARCH-042', 'date' => '2000-01-01']))->assertDontSee($visit->visit_number);
             $this->get(route($route, ['search' => str_repeat('x', 101)]))->assertSessionHasErrors('search');
-            $this->get(route('dashboard', ['search' => 'missing-person']))->assertOk()->assertSee($visit->visit_number)->assertDontSee('Patient name or queue number');
+            $this->get(route('dashboard', ['search' => 'missing-person']))->assertOk()->assertDontSee($visit->visit_number)->assertSee('Search visits');
             $this->get(route('dashboard'))
                 ->assertSee($role === 'doctor' ? 'Review visit' : 'Open confirmation');
             if ($role === 'admin') {

@@ -81,3 +81,11 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+.dashboard-visits-table thead tr { height: 44px; }
+.dashboard-visits-table tbody tr { height: 70px; }
+.dashboard-visits-table th, .dashboard-visits-table td { white-space: nowrap; }
+
+.fixed-visit-table thead tr { height: 44px; }
+.fixed-visit-table tbody tr { height: 70px; }
+.fixed-visit-table th, .fixed-visit-table td { white-space: nowrap; }

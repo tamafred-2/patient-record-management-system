@@ -21,7 +21,7 @@ class Visit extends Model
                 $match->whereRaw("LOWER(queue_reference) LIKE ? ESCAPE '!'", [$pattern])
                     ->orWhereHas('patient', function (Builder $patient) use ($pattern) {
                         $patient->where(function (Builder $names) use ($pattern) {
-                            foreach (['first_name', 'middle_name', 'last_name', 'suffix'] as $field) {
+                            foreach (['patient_number', 'first_name', 'middle_name', 'last_name', 'suffix'] as $field) {
                                 $names->orWhereRaw("LOWER({$field}) LIKE ? ESCAPE '!'", [$pattern]);
                             }
                         });

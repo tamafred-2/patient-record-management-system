@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\DispositionRecord;
 use App\Models\LaboratoryRecord;
+use App\Models\MidwifeCareRecord;
 use App\Models\Prescription;
 use App\Models\Service;
 use App\Models\TreatmentRecord;
+use App\Models\VaccinationRecord;
 use App\Models\Visit;
 use App\Services\DiagnosisLabels;
 use Carbon\CarbonImmutable;
@@ -107,6 +109,19 @@ class AnalyticsController extends Controller
             foreach (LaboratoryRecord::STATUSES as $status => $label) {
                 $panels['Laboratory activity'][$label] = LaboratoryRecord::whereIn('visit_id', $ids)->where('availability_status', $status)->count();
             }
+        }
+        if ($can('midwife-care.view')) {
+            $panels['Midwife care activity'] = [];
+            foreach (MidwifeCareRecord::TYPES as $type => $label) {
+                $panels['Midwife care activity'][$label] = MidwifeCareRecord::whereIn('visit_id', $ids)->where('care_type', $type)->count();
+            }
+        }
+        if ($can('vaccinations.view')) {
+            $vaccinations = VaccinationRecord::whereIn('visit_id', $ids);
+            $panels['Vaccination activity'] = [
+                'Vaccinations recorded' => (clone $vaccinations)->count(),
+                'With next appointment recorded' => (clone $vaccinations)->whereNotNull('next_appointment')->count(),
+            ];
         }
         if ($can('pharmacy.view') || $can('consultations.view')) {
             $rx = Prescription::whereIn('visit_id', $ids);

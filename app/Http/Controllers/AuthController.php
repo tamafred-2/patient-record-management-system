@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -31,6 +32,7 @@ class AuthController extends Controller
         }
 
         RateLimiter::clear($key);
+        User::whereKey($request->user()->id)->toBase()->update(['last_sign_in_at' => now(), 'last_active_at' => now()]);
         $request->session()->regenerate();
 
         $request->session()->put('auth_password_version', $request->user()->password_version);

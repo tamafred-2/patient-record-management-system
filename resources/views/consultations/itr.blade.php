@@ -50,39 +50,44 @@
         <section class="rounded-xl border border-slate-200 bg-white p-6">
             <h2 class="text-xl font-semibold">Objective</h2>
             <p class="mt-2 text-sm text-slate-600">Current nurse measurements. Saving the ITR stores a copy of these values.</p>
-            <p class="mt-2 text-sm text-slate-500">Current measurements last saved: {{ $vitals?->updated_at?->timezone('Asia/Manila')->format('M j, Y g:i:s A') ?? 'Not recorded' }}@if($vitals?->updated_at) (Asia/Manila)@endif</p>
+            <p class="mt-2 text-sm text-slate-500">Current measurements last saved: {{ $vitals?->updated_at?->timezone('Asia/Manila')->format('M j, Y g:i:s A') ?? 'Not recorded' }}</p>
             <dl class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 @foreach($objectiveFields as $field => $label)<div><dt class="text-sm text-slate-500">{{ $label }}</dt><dd>{{ $vitals?->$field ?? 'Not recorded' }}</dd></div>@endforeach
             </dl>
             @if($record)
-                <details class="mt-5 rounded-lg bg-slate-50 p-4"><summary class="cursor-pointer font-medium">Objective values at last ITR save<span class="mt-1 block text-sm font-normal text-slate-500">ITR last saved: {{ $record->updated_at?->timezone('Asia/Manila')->format('M j, Y g:i:s A') ?? 'Not recorded' }}@if($record->updated_at) (Asia/Manila)@endif</span></summary>
+                <details class="mt-5 rounded-lg bg-slate-50 p-4"><summary class="cursor-pointer font-medium">Objective values at last ITR save<span class="mt-1 block text-sm font-normal text-slate-500">ITR last saved: {{ $record->updated_at?->timezone('Asia/Manila')->format('M j, Y g:i:s A') ?? 'Not recorded' }}</span></summary>
                     <dl class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">@foreach($objectiveFields as $field => $label)<div><dt class="text-sm text-slate-500">{{ $label }}</dt><dd>{{ $record->objective_snapshot[$field] ?? 'Not recorded' }}</dd></div>@endforeach</dl>
                 </details>
             @endif
         </section>
-        <section class="rounded-xl border border-slate-200 bg-white p-6" x-data="{ diagnosisText: '', addDiagnosis() {
-            const selected = this.$refs.suggestedDiagnosis.value;
+        <section class="rounded-xl border border-slate-200 bg-white p-6" x-data="{ diagnosisText: '', customDiagnosis: false, diagnosisError: '', addDiagnosis() {
+            const selected = (this.customDiagnosis ? this.$refs.customDiagnosis.value : this.$refs.suggestedDiagnosis.value).trim().replace(/\s+/g, ' ');
+            this.diagnosisError = '';
+            if (!selected) { this.diagnosisError = 'Choose a diagnosis or enter a custom diagnosis first.'; return; }
+            if (selected.length > 150) { this.diagnosisError = 'Use no more than 150 characters per diagnosis.'; return; }
             const field = this.$refs.diagnoses;
             const lines = field.value.split(/\r?\n/).map(v => v.trim()).filter(Boolean);
             const normalize = value => value.replace(/\s+/g, ' ').toLowerCase();
             if (selected &amp;&amp; !lines.some(v => normalize(v) === normalize(selected))) {
+                if (lines.length >= 10) { this.diagnosisError = 'You can add up to 10 diagnoses.'; return; }
                 field.value = [...lines, selected].join('\n');
                 field.dispatchEvent(new Event('input', { bubbles: true }));
             }
             field.focus();
         } }" x-init="diagnosisText = $refs.diagnoses.value; @if($errors->has('diagnoses')) $nextTick(() => $refs.diagnosisEditor.showModal()) @endif">
             <div class="flex flex-wrap items-center justify-between gap-4">
-                <div><h2 class="text-xl font-semibold">Diagnoses for analytics</h2><p class="mt-2 text-sm text-slate-600" x-text="diagnosisText.trim() ? diagnosisText.split(/\r?\n/).filter(line => line.trim()).length + ' diagnosis label(s) in this ITR' : 'No diagnosis labels entered.'"></p></div>
+                <div><h2 class="text-xl font-semibold">Diagnoses recorded for this visit</h2><p class="mt-2 text-sm text-slate-600" x-text="diagnosisText.trim() ? diagnosisText.split(/\r?\n/).filter(line => line.trim()).length + ' diagnosis label(s) in this ITR' : 'No diagnosis labels entered.'"></p></div>
                 <button type="button" @click="$refs.diagnosisEditor.showModal()" aria-haspopup="dialog" class="rounded-lg border border-emerald-800 px-4 py-3 font-semibold text-emerald-800">{{ $canEdit ? 'Edit diagnoses' : 'View diagnoses' }}</button>
             </div>
             <x-dialog reference="diagnosisEditor" labelledby="diagnosis-editor-title">
-                <div class="flex items-center justify-between border-b border-slate-100 px-6 py-5"><h2 id="diagnosis-editor-title" class="text-xl font-semibold">Diagnoses for analytics</h2><button type="button" @click="$refs.diagnosisEditor.close()" aria-label="Close diagnoses" class="rounded-lg px-3 py-1 text-xl text-slate-500 hover:bg-slate-100">&times;</button></div>
+                <div class="flex items-center justify-between border-b border-slate-100 px-6 py-5"><h2 id="diagnosis-editor-title" class="text-xl font-semibold">Diagnoses recorded for this visit</h2><button type="button" @click="$refs.diagnosisEditor.close()" aria-label="Close diagnoses" class="rounded-lg px-3 py-1 text-xl text-slate-500 hover:bg-slate-100">&times;</button></div>
                 <div class="p-6">
                 <fieldset @disabled(!$canEdit)>
-                <label for="diagnoses" class="mb-2 block text-xl font-semibold">Diagnoses for analytics (optional)</label><p id="diagnoses-help" class="mb-3 text-sm text-slate-600">Enter doctor-assigned diagnoses only, one per line (up to 10). Use consistent disease names without patient details. Screening responses are not copied here automatically.</p>@if($diagnosisSuggestions)
-            <div class="mb-4 flex flex-wrap items-end gap-3"><div class="min-w-0 flex-1"><label for="suggested-diagnosis" class="mb-2 block text-sm font-medium">Previously recorded diagnosis</label><select id="suggested-diagnosis" x-ref="suggestedDiagnosis" class="w-full rounded-lg border border-slate-300 p-3"><option value="">Select an existing label</option>@foreach($diagnosisSuggestions as $label)<option value="{{ $label }}">{{ $label }}</option>@endforeach</select></div><button type="button" @click="addDiagnosis()" class="rounded-lg border border-emerald-800 px-4 py-3 font-semibold text-emerald-800">Use diagnosis label</button></div>
+                <label for="diagnoses" class="mb-2 block text-xl font-semibold">Diagnosis list (optional)</label><p id="diagnoses-help" class="mb-3 text-sm text-slate-600">Record only diagnoses assigned by the doctor for this visit. These entries are counted in the diagnosis charts. Choose a previous entry or select Other to type a custom diagnosis, then click Add diagnosis. You can also edit the list directly, one diagnosis per line (up to 10, 150 characters each). Do not include patient details.</p>
+            <div class="mb-4 flex flex-wrap items-end gap-3"><div class="min-w-0 flex-1"><label for="suggested-diagnosis" class="mb-2 block text-sm font-medium">Choose a diagnosis</label><select id="suggested-diagnosis" x-ref="suggestedDiagnosis" @change="customDiagnosis = $event.target.selectedOptions[0].dataset.custom === 'true'; diagnosisError = ''; if (customDiagnosis) $nextTick(() => $refs.customDiagnosis.focus())" class="w-full rounded-lg border border-slate-300 p-3"><option value="">Select a previous diagnosis or Other</option>@foreach($diagnosisSuggestions as $label)<option value="{{ $label }}">{{ $label }}</option>@endforeach<option value="" data-custom="true">Other - enter a custom diagnosis</option></select></div><button type="button" @click="addDiagnosis()" class="rounded-lg border border-emerald-800 px-4 py-3 font-semibold text-emerald-800">Add diagnosis</button></div>
             <p class="mb-3 text-xs text-slate-500">Reuse a label to avoid spelling variations. These are previous entries, not suggested diagnoses. Review before saving.</p>
-            @endif
+            <div x-show="customDiagnosis" x-cloak class="mb-4"><label for="custom-diagnosis" class="mb-2 block text-sm font-medium">Custom diagnosis</label><input id="custom-diagnosis" x-ref="customDiagnosis" type="text" maxlength="150" placeholder="Enter the doctor-assigned diagnosis" @keydown.enter.prevent="addDiagnosis()" class="w-full rounded-lg border border-slate-300 p-3"><p class="mt-2 text-sm text-slate-500">Click Add diagnosis to include this name in the list below. The name you enter is used in analytics; it is not grouped under Other.</p></div>
+            <p x-show="diagnosisError" x-text="diagnosisError" role="alert" class="mb-3 text-sm text-red-700"></p>
             <textarea x-ref="diagnoses" @input="diagnosisText = $event.target.value" id="diagnoses" name="diagnoses" rows="3" maxlength="1600" aria-describedby="diagnoses-help" class="w-full rounded-lg border border-slate-300 p-3">{{ old('diagnoses', implode("\n", $record?->diagnoses ?? [])) }}</textarea>@error('diagnoses')<p class="mt-1 text-sm text-red-700">{{ $message }}</p>@enderror
                 </fieldset>
                 <p class="mt-3 text-sm text-slate-500">{{ $canEdit ? 'Changes stay in this form. Select Save ITR after closing to save them.' : 'This ITR is read-only.' }}</p>
@@ -117,7 +122,7 @@
                 </div>
             </x-dialog>
         </section>
-        @if($record)<p class="text-sm text-slate-500">Last saved {{ $record->updated_at->timezone('Asia/Manila')->format('M j, Y g:i A') }} (Asia/Manila)</p>@endif
+        @if($record)<p class="text-sm text-slate-500">Last saved {{ $record->updated_at->timezone('Asia/Manila')->format('M j, Y g:i A') }}</p>@endif
         @if($canEdit)<x-button>Save ITR</x-button>@else<p class="text-sm text-slate-600">This ITR is read-only.</p>@endif
     </form>
 </x-layout>

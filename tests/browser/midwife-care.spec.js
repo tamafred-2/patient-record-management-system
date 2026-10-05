@@ -19,14 +19,19 @@ test('midwife records care with conditional location and staff completes the vis
   try {
     let page = await signIn('information');
     await page.goto('/patients/create');
-    await page.getByLabel('First name (required)', { exact: true }).fill('Fictional Care');
-    await page.getByLabel('Last name (required)', { exact: true }).fill('Browser');
+    await page.getByLabel('First name', { exact: true }).fill('Fictional Care');
+    await page.getByLabel('Last name', { exact: true }).fill('Browser');
+    await page.getByLabel('Date of birth', { exact: true }).fill('2000-01-10');
+    await page.getByLabel('Sex', { exact: true }).selectOption('Female');
+    await page.getByLabel('Barangay', { exact: true }).fill('Example Barangay');
+    await page.getByLabel('Municipality', { exact: true }).fill('Calasiao');
+    await page.getByLabel('Province', { exact: true }).fill('Pangasinan');
     await page.getByRole('button', { name: 'Register patient', exact: true }).click();
     await expect(page).toHaveURL(/\/patients\/\d+$/);
     const patient = new URL(page.url()).pathname.split('/').pop();
     await page.getByRole('link', { name: 'Start visit', exact: true }).click();
     await page.getByLabel('Requested service (required)').selectOption({ label: 'Midwife Care' });
-    await page.getByLabel('Existing queue reference (required)').fill('CARE-BROWSER-001');
+    await expect(page.getByLabel('Queue number (auto-generated)')).toHaveAttribute('readonly', '');
     await page.getByRole('button', { name: 'Start visit', exact: true }).click();
     await expect(page).toHaveURL(/\/visits\/\d+$/);
     const visit = new URL(page.url()).pathname.split('/').pop();

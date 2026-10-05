@@ -16,11 +16,13 @@ class DispensingController extends Controller
     public function index(Request $request)
     {
         Gate::authorize('pharmacy.view');
-        $data = $request->validate(['date' => ['nullable', 'date_format:Y-m-d']]);
+        $data = $request->validate(['all' => ['sometimes', 'boolean'], 'date' => ['nullable', 'date_format:Y-m-d'], 'search' => ['nullable', 'string', 'max:100']]);
+        $allDates = (bool) ($data['all'] ?? false);
         $date = $data['date'] ?? now('Asia/Manila')->toDateString();
-        $visits = Visit::with(['patient', 'prescription'])->whereHas('patient')->whereHas('prescription', fn ($q) => $q->where('status', 'ISSUED'))->whereDate('visit_date', $date)->latest('id')->paginate(20)->withQueryString();
+        $search = trim($data['search'] ?? '');
+        $visits = Visit::with(['patient', 'prescription'])->whereHas('patient')->whereHas('prescription', fn ($q) => $q->where('status', 'ISSUED'))->when(! $allDates, fn ($query) => $query->whereDate('visit_date', $date))->searchPatientOrQueue($search)->latest('id')->paginate(20)->withQueryString();
 
-        return view('pharmacy.index', compact('visits', 'date'));
+        return view('pharmacy.index', compact('allDates', 'search', 'visits', 'date'));
     }
 
     public function show(Patient $patient, string $visit)

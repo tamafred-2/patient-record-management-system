@@ -29,9 +29,9 @@ class AssessmentTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         $staff = User::factory()->create();
         $staff->assignRole('Information Staff');
-        $this->actingAs($staff)->post('/patients', ['first_name' => 'Fictional', 'last_name' => 'Assessment'])->assertRedirect();
+        $this->actingAs($staff)->post('/patients', ['birth_date' => '2000-01-10', 'sex' => 'Female', 'barangay' => 'Example Barangay', 'municipality' => 'Calasiao', 'province' => 'Pangasinan', 'first_name' => 'Fictional', 'last_name' => 'Assessment'])->assertRedirect();
         $this->patient = Patient::firstOrFail();
-        $this->post(route('patients.visits.store', $this->patient), ['service_id' => Service::first()->id, 'visit_date' => now('Asia/Manila')->toDateString()])->assertRedirect();
+        $this->post(route('patients.visits.store', $this->patient), ['service_id' => Service::first()->id, 'visit_date' => now('Asia/Manila')->toDateString(), 'queue_reference' => 'TEST-ASSESSMENT'])->assertSessionHasNoErrors()->assertRedirect();
         $this->visit = Visit::firstOrFail();
         $this->nurse = User::factory()->create();
         $this->nurse->assignRole('Nurse');
