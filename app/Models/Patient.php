@@ -52,4 +52,18 @@ class Patient extends Model
     {
         return hash('sha256', mb_strtolower(preg_replace('/\s+/u', ' ', trim($first))).'|'.mb_strtolower(preg_replace('/\s+/u', ' ', trim($last))));
     }
+
+    public function hasSameDemographics(array $data): bool
+    {
+        $normalize = fn ($value) => mb_strtolower(preg_replace('/\s+/u', ' ', trim((string) $value)));
+
+        foreach (self::DEMOGRAPHICS as $field) {
+            $stored = $field === 'birth_date' ? $this->birth_date?->format('Y-m-d') : $this->{$field};
+            if ($normalize($stored) !== $normalize($data[$field] ?? null)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 }

@@ -7,12 +7,22 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasRoles, Notifiable;
+
+    protected static function booted(): void
+    {
+        static::updating(function (User $user) {
+            if ($user->getOriginal('primary_role') !== null && $user->isDirty('primary_role')) {
+                throw ValidationException::withMessages(['primary_role' => 'The primary role is locked and cannot be changed.']);
+            }
+        });
+    }
 
     /**
      * The attributes that are mass assignable.
