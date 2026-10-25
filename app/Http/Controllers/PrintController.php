@@ -16,7 +16,7 @@ class PrintController extends Controller
     {
         abort_unless($request->user()->can('prescriptions.view') || $request->user()->can('pharmacy.view'), 403);
         $visit = $patient->visits()->with('treatmentRecord')->findOrFail($visit);
-        $prescription = $visit->prescription()->where('status', 'ISSUED')->with(['items', 'doctor'])->firstOrFail();
+        $prescription = $visit->prescription()->issued()->with(['items', 'doctor'])->firstOrFail();
         activity('prescriptions')->causedBy($request->user())->performedOn($prescription)->withProperties(['visit_id' => $visit->id])->log('prescription.print_viewed');
 
         return response()->view('prints.prescription', compact('patient', 'visit', 'prescription'))->header('Cache-Control', 'private, no-store');
@@ -41,5 +41,17 @@ class PrintController extends Controller
         activity('laboratory')->causedBy($request->user())->performedOn($record)->withProperties(['visit_id' => $visit->id])->log('laboratory.external_slip_viewed');
 
         return response()->view('prints.external-lab', compact('patient', 'visit', 'record'))->header('Cache-Control', 'private, no-store');
+    }
+
+    public function laboratoryResult(Request $request, Patient $patient, string $visit, string $record)
+    {
+        abort_unless($request->user()->can('laboratory.view'), 403);
+        $visit = $patient->visits()->forLaboratory()->findOrFail($visit);
+        $record = $visit->laboratoryRecords()->with('updater')->where('availability_status', 'PERFORMED_RHU')->findOrFail($record);
+        abort_unless($record->result_rows || filled($record->result), 404);
+        activity('laboratory')->causedBy($request->user())->performedOn($record)
+            ->withProperties(['visit_id' => $visit->id, 'version' => $record->lock_version])->log('laboratory.result_print_viewed');
+
+        return response()->view('prints.laboratory-result', compact('patient', 'visit', 'record'))->header('Cache-Control', 'private, no-store');
     }
 }

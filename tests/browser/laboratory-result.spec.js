@@ -36,6 +36,13 @@ test('MedTech status shows only the relevant field and saves a viewable RHU resu
   await expect(record.getByRole('cell', { name: 'Synthetic result', exact: true })).toBeVisible();
   await expect(record.getByRole('cell', { name: 'Second synthetic result', exact: true })).toBeVisible();
   await expect(record.getByText('Synthetic external advice')).toHaveCount(0);
+  await record.getByRole('link', { name: 'Print laboratory result', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'RHU Calasiao · Laboratory result' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'Synthetic result', exact: true })).toBeVisible();
+  await expect(page.getByText(/not an official RHU form layout/)).toBeVisible();
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.getByRole('button', { name: 'Print', exact: true })).toBeHidden();
+  await page.screenshot({ path: 'storage/framework/testing/laboratory-result-print.png', fullPage: true });
 });
 
 
