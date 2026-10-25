@@ -17,7 +17,7 @@
     <div class="flex flex-wrap items-start justify-between gap-4">
         <div><h1 class="text-3xl font-semibold">Dashboard</h1><p class="mt-2 text-sm text-slate-500">{{ $dashboardDescription }}</p></div>
         @if(auth()->user()->can('create', App\Models\Patient::class))
-            <x-button href="{{ route('patients.create') }}" class="whitespace-nowrap">Register patient</x-button>
+            <x-button :href="route('patients.create')" class="whitespace-nowrap">Register patient</x-button>
         @elseif(auth()->user()->can('viewAny', App\Models\Visit::class) || auth()->user()->can('analytics.overview'))
             <a href="{{ route('visits.index', ['from' => $today, 'to' => $today]) }}" class="whitespace-nowrap rounded-lg bg-emerald-800 px-4 py-3 font-semibold text-white hover:bg-emerald-900 focus-visible:outline-2 focus-visible:outline-emerald-700">Patient Visits</a>
         @elseif(auth()->user()->can('consultations.view'))

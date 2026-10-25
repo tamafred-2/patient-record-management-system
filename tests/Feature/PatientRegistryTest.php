@@ -225,7 +225,7 @@ class PatientRegistryTest extends TestCase
         Visit::forceCreate(['patient_id' => $adult->id, 'service_id' => $service->id, 'created_by' => $staff->id, 'visit_date' => '2026-10-25', 'status' => Visit::OPEN]);
         Visit::forceCreate(['patient_id' => $senior->id, 'service_id' => $service->id, 'created_by' => $staff->id, 'visit_date' => '2026-10-20', 'status' => Visit::COMPLETED]);
 
-        $this->get('/patients')->assertOk()->assertSee('Age group')->assertSee('<option value="Alpha"', false)->assertSee('<option value="Beta"', false);
+        $this->get('/patients')->assertOk()->assertSeeInOrder(['Visits', 'No visits yet', '<label for="table-search" class="mb-2 block text-sm font-medium">Patient number or name</label>'], false)->assertSee('Age group')->assertSee('<option value="Alpha"', false)->assertSee('<option value="Beta"', false);
         $this->get('/patients?sex=Female')->assertSee($adult->patient_number)->assertSee($senior->patient_number)->assertDontSee($child->patient_number);
         // Turning 60 today counts as a senior citizen; a 17-year-old is a child.
         $this->get('/patients?age=senior')->assertSee($senior->patient_number)->assertDontSee($adult->patient_number)->assertDontSee($child->patient_number);

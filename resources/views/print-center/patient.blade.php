@@ -6,7 +6,7 @@
             <h1 class="mt-2 text-3xl font-semibold">{{ $patient->full_name }}</h1>
             <p class="mt-1 text-slate-600">Documents & printouts</p>
         </div>
-        <x-button href="{{ route('print-center.summary', $patient) }}">Print patient summary</x-button>
+        <x-button :href="route('print-center.summary', $patient)">Print patient summary</x-button>
     </div>
     <p class="mt-4 max-w-3xl text-sm text-slate-600">Every printout you can open for this patient, grouped by visit. Printouts use saved records only and are not official RHU form layouts unless stated. Service activity reports are on the Reports page.</p>
     <div class="mt-6 space-y-4">

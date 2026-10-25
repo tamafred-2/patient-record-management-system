@@ -26,7 +26,7 @@
             @if($downloadTooLarge)
                 <button type="button" disabled aria-describedby="download-limit" class="rounded-lg bg-slate-200 px-4 py-3 font-semibold text-slate-500">Download report PDF</button>
             @else
-                <x-button href="{{ route('reports.pdf',$filters) }}">Download report PDF</x-button>
+                <x-button :href="route('reports.pdf',$filters)">Download report PDF</x-button>
             @endif
         @endcan
     </div>

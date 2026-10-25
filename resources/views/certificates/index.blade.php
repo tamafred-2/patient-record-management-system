@@ -1,5 +1,5 @@
 <x-layout title="Medical certificates">
-    <x-back-link href="{{ route('consultations.show', [$patient, $visit]) }}">Back to visit summary</x-back-link>
+    <x-back-link :href="route('consultations.show', [$patient, $visit])">Back to visit summary</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">Medical certificates</h1>
     <p class="mt-3 font-semibold">{{ $patient->full_name }} · {{ $patient->patient_number }}</p>
     <p class="mt-1 text-sm text-slate-600">{{ $visit->visit_number }} · {{ $visit->visit_date->format('M j, Y') }} · {{ $visit->status }}</p>

@@ -32,7 +32,7 @@
                 @endforeach
             </div>
             @if($record->prescribed_at)<p class="mt-5 text-sm text-slate-500">Issued {{ $record->prescribed_at->timezone('Asia/Manila')->format('M j, Y g:i A') }}. Issued prescriptions are read-only.</p>@endif
-            @if($record?->status === 'ISSUED')<x-button variant="secondary" href="{{ route('prints.prescription', [$patient, $visit]) }}" class="mt-3">Print prescription</x-button>@endif
+            @if($record?->status === 'ISSUED')<x-button variant="secondary" :href="route('prints.prescription', [$patient, $visit])" class="mt-3">Print prescription</x-button>@endif
             @if($record?->status === 'ISSUED')<p class="mt-5 rounded-lg bg-emerald-50 p-4 text-emerald-900">This prescription is available in Pharmacy. The pharmacist checks availability and records the quantities actually released. The visit remains open until it is explicitly completed.</p>@endif
     @if($canEdit)
                 <form method="POST" action="{{ route('prescriptions.issue', [$patient, $visit]) }}" class="mt-6 space-y-4 border-t border-slate-200 pt-5">

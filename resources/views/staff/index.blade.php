@@ -1,7 +1,7 @@
 <x-layout title="User Accounts">
     <div class="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div><h1 class="text-3xl font-semibold">User Accounts</h1><p class="mt-2 text-slate-600">Manage who can access the RHU workspace.</p></div>
-        <x-button href="{{ route('staff.create') }}">Create user account</x-button>
+        <x-button :href="route('staff.create')">Create user account</x-button>
     </div>
     <p class="mb-4 text-sm text-slate-600">Recently active means activity within the last 5 minutes, even if the user has since closed the browser or signed out. Refresh to update.</p>
     <x-table-filters label="Search users by name or email" :filters="[

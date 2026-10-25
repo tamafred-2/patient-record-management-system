@@ -1,6 +1,6 @@
 <x-layout title="Midwife care record">
     @php($canEdit = $visit->status === 'OPEN' && auth()->user()->can('midwife-care.record'))
-    <x-back-link href="{{ route('midwife-care.index', ['date' => $visit->visit_date->toDateString()]) }}">Back to Midwife care visits</x-back-link>
+    <x-back-link :href="route('midwife-care.index', ['date' => $visit->visit_date->toDateString()])">Back to Midwife care visits</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">Midwife care record</h1>
     <p class="mt-2 text-sm text-slate-500">Basic service record for RHU review. This is not an official clinical form.</p>
     <section class="my-6 rounded-xl border border-slate-200 bg-white p-6">

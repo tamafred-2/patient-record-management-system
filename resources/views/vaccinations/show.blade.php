@@ -1,6 +1,6 @@
 <x-layout title="Vaccination record">
     @php($canEdit = $visit->status === 'OPEN' && auth()->user()->can('vaccinations.record'))
-    <x-back-link href="{{ route('vaccinations.index', ['date' => $visit->visit_date->toDateString()]) }}">Back to vaccination visits</x-back-link>
+    <x-back-link :href="route('vaccinations.index', ['date' => $visit->visit_date->toDateString()])">Back to vaccination visits</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">Vaccination record</h1>
     <section class="my-6 rounded-xl border border-slate-200 bg-white p-6">
         <h2 class="text-xl font-semibold">{{ $patient->full_name }}</h2>

@@ -20,7 +20,7 @@
                 </dl>
             </div>
             <div class="mt-6 flex flex-col gap-3 sm:flex-row-reverse">
-                <x-button href="{{ route('patients.show', $match) }}">Open existing profile</x-button>
+                <x-button :href="route('patients.show', $match)">Open existing profile</x-button>
                 <button type="button" autofocus @click="$refs.existingPatient.close()" class="rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-emerald-700">Back to editing</button>
             </div>
         </div>

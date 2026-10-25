@@ -4,7 +4,7 @@
         $confirmation = $visit->eligibilityCheck;
         $fields = ['systolic_bp' => ['Systolic BP', 'mmHg'], 'diastolic_bp' => ['Diastolic BP', 'mmHg'], 'temperature' => ['Temperature', 'Celsius'], 'pulse_rate' => ['Pulse rate', 'bpm'], 'height_cm' => ['Height', 'cm'], 'weight_kg' => ['Weight', 'kg'], 'respiratory_rate' => ['Respiratory rate', 'cpm'], 'oxygen_saturation' => ['O2 saturation', '%']];
     @endphp
-    <x-back-link href="{{ route('consultations.index', ['date' => $visit->visit_date->toDateString()]) }}">Back to doctor visits</x-back-link>
+    <x-back-link :href="route('consultations.index', ['date' => $visit->visit_date->toDateString()])">Back to doctor visits</x-back-link>
     @php
         $philhealth = match ($confirmation?->philhealth_confirmed) {
             true => ['With record', 'border-emerald-300 bg-emerald-50 text-emerald-900', 'M5 12.5l4.5 4.5L19 7.5'],
@@ -54,7 +54,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3">
             <h2 id="visit-actions-title" class="text-xl font-semibold">Visit actions</h2>
             @can('complete', $visit)
-                <x-button href="{{ route('visits.completion', [$patient, $visit]) }}">{{ $visit->isOpen() ? 'Review and complete visit' : 'View completion details' }}</x-button>
+                <x-button :href="route('visits.completion', [$patient, $visit])">{{ $visit->isOpen() ? 'Review and complete visit' : 'View completion details' }}</x-button>
             @endcan
         </div>
         <div class="mt-5 grid gap-6 lg:grid-cols-3">

@@ -1,5 +1,5 @@
 <x-layout title="Start visit">
-    <x-back-link href="{{ route('patients.show', $patient) }}">Back to patient</x-back-link>
+    <x-back-link :href="route('patients.show', $patient)">Back to patient</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">Start visit</h1>
     <p class="mt-3 font-semibold">{{ $patient->full_name }} · {{ $patient->patient_number }}</p>
     <p class="mt-2 text-slate-600">Confirm the patient identity before recording this encounter.</p>

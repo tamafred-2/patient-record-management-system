@@ -2,7 +2,7 @@
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div><p class="text-sm font-semibold text-emerald-800">Patient registry</p><h1 class="mt-2 text-3xl font-semibold">Find a patient</h1></div>
         @can('create', App\Models\Patient::class)
-            <x-button href="{{ route('patients.create') }}">Register patient</x-button>
+            <x-button :href="route('patients.create')">Register patient</x-button>
         @endcan
     </div>
     <x-table-filters label="Patient number or name" search-name="q" :search-max="150" placeholder="Search before registering a new patient" :filters="$filterOptions" />
