@@ -26,6 +26,7 @@
             <div class="mb-5 flex items-center justify-between gap-3"><h2 class="text-lg font-semibold">Visit history</h2>
                 @can('create', [App\Models\Visit::class, $patient])<a href="{{ route('patients.visits.create', $patient) }}" class="rounded-lg bg-emerald-800 px-4 py-2 font-semibold text-white">Start visit</a>@endcan
             </div>
+            <x-visit-history-filters />
             @include('visits.table')
         </section>
     @endif

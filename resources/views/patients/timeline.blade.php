@@ -6,6 +6,7 @@
         <a href="{{ route('print-center.patient', $patient) }}" class="rounded-lg border border-emerald-800 px-4 py-2 text-sm font-semibold text-emerald-800">Documents &amp; printouts</a>
         <a href="{{ route('print-center.summary', $patient) }}" class="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">Print patient summary</a>
     </div>
+    <x-visit-history-filters />
     <div class="mt-6 space-y-5">
         <x-scroll-queue :paginator="$visits" id="visits" kind="cards" label="Record history, scroll to load more"><div data-queue-items>@forelse($visits as $visit)
             <section class="rounded-xl border border-slate-200 bg-white p-6">

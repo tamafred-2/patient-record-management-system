@@ -24,12 +24,6 @@
             <a href="{{ route('consultations.index', ['date' => $today]) }}" class="whitespace-nowrap rounded-lg bg-emerald-800 px-4 py-3 font-semibold text-white hover:bg-emerald-900 focus-visible:outline-2 focus-visible:outline-emerald-700">Open doctor visits</a>
         @endif
     </div>
-    @if($nurseOrdering ?? 0)
-        <a href="{{ route('assessments.index', ['authorized' => 1]) }}" class="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-300 bg-emerald-50 p-5 hover:border-emerald-600">
-            <span><strong class="block text-emerald-950">You can order laboratory tests for {{ $nurseOrdering }} {{ Str::plural('visit', $nurseOrdering) }}</strong><span class="text-sm text-emerald-900">A doctor turned on nurse ordering for patients you assessed.</span></span>
-            <span class="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">Open authorized visits</span>
-        </a>
-    @endif
     @if(($followUps ?? collect())->isNotEmpty())
         @php($followUpDay = now('Asia/Manila')->startOfDay())
         <section class="mt-6 rounded-xl border border-slate-200 bg-white p-5" aria-labelledby="follow-ups-title" id="follow-ups">

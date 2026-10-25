@@ -171,10 +171,6 @@
                     <p class="min-w-0 truncate text-base font-semibold text-slate-800 sm:text-lg">{{ $title }}</p>
                     <div class="flex shrink-0 items-center gap-3">
                         @unless(auth()->user()->must_change_password)<x-notification-bell :unread="$unreadNotifications" />@endunless
-                        <span class="hidden items-center gap-2 sm:flex">
-                            <span aria-hidden="true" class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-sm font-semibold text-white">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}</span>
-                            <span class="max-w-48 truncate text-sm font-medium text-slate-700">{{ auth()->user()->name }}</span>
-                        </span>
                     </div>
                 </div>
             </header>

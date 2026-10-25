@@ -1,15 +1,11 @@
 <x-layout title="Initial assessment">
     <h1 class="text-3xl font-semibold">Initial assessment</h1>
     <p class="mt-2 text-slate-600">Record vital signs and a detailed assessment summary for the doctor.</p>
-    <div class="my-4 flex flex-wrap gap-4"><a href="{{ route('assessments.index', ['reassessment' => 1]) }}" class="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 font-semibold text-amber-900">Pending reassessment requests: {{ $pendingCount }}</a>@if($reassessmentOnly)<a href="{{ route('assessments.index') }}" class="py-3 text-emerald-800 underline">Back to all assessments</a>@endif</div>
-    @can('followups.request')
-        <a class="mb-4 inline-block rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 font-semibold text-emerald-900" href="{{ route('assessments.index', ['authorized' => 1]) }}">Your authorized follow-up visits: {{ $authorizedCount }}</a>
-    @endcan
     @if($authorizedOnly)
-        <p class="text-sm text-slate-600">Showing your unused test authorizations on open visits across all dates. <a class="text-emerald-800 underline" href="{{ route('assessments.index') }}">Back to all assessments</a></p>
+        <p class="mt-4 text-sm text-slate-600">Showing open visits you are authorized to order tests for, across all dates. <a class="text-emerald-800 underline" href="{{ route('assessments.index') }}">Back to all assessments</a></p>
         <form method="GET" class="my-6 flex items-end gap-3"><input type="hidden" name="authorized" value="1"><x-input name="search" label="Patient name or queue number" :value="$search" maxlength="100" /><x-button>Search authorized visits</x-button></form>
     @elseif($reassessmentOnly)
-        <p class="text-sm text-slate-600">Showing pending requests across all visit dates.</p>
+        <p class="mt-4 text-sm text-slate-600">Showing pending requests across all visit dates. <a class="text-emerald-800 underline" href="{{ route('assessments.index') }}">Back to all assessments</a></p>
         <form method="GET" class="my-6 flex items-end gap-3"><input type="hidden" name="reassessment" value="1"><x-input name="search" label="Patient name or queue number" :value="$search" maxlength="100" /><x-button>Search pending requests</x-button></form>
     @else
         <x-visit-filters :search="$search" :date="$date" :all-dates="$allDates" />

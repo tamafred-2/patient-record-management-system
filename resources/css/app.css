@@ -102,6 +102,11 @@
 .scroll-queue[data-queue-kind="cards"] .queue-viewport { height: min(640px, 75vh); }
 .scroll-queue[data-queue-kind="cards"] [data-queue-items] { display: grid; gap: 1rem; padding: 1rem; }
 .queue-controls [hidden] { display: none; }
+[data-table-search-hidden] { display: none; }
+@media print {
+    .table-search-controls { display: none !important; }
+    tr[data-table-search-hidden] { display: table-row !important; }
+}
 @media (prefers-reduced-motion: no-preference) {
     .queue-viewport:focus-visible { scroll-behavior: smooth; }
 }

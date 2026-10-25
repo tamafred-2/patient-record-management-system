@@ -1,8 +1,12 @@
 <x-layout title="Nurse authorization">
     <h1 class="text-3xl font-semibold">Nurse authorization</h1>
-    <p class="mt-3 max-w-3xl text-slate-600">Doctors decide which nurses may order follow-up laboratory tests after their assessment. Access applies to every patient the nurse assessed until a doctor turns it off. Use <strong>Manage</strong> to turn access on or off, choose permitted tests, see the change history and withdraw older visit-specific authorizations.</p>
+    <p class="mt-3 max-w-3xl text-slate-600">Manage nurses’ laboratory ordering access for patients they assessed.</p>
+    <x-table-filters label="Search nurses, doctors or permitted tests" :filters="[
+        'ordering' => ['label' => 'Laboratory ordering', 'options' => ['on' => 'On', 'off' => 'Off', 'unusable' => 'On but not usable']],
+        'grants' => ['label' => 'Older visit grants', 'options' => ['with' => 'With grants', 'without' => 'Without grants']],
+    ]" />
     <div class="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table class="min-w-full text-left text-sm">
+        <table data-server-filtered class="min-w-full text-left text-sm">
             <caption class="sr-only">Nurses and their laboratory ordering access</caption>
             <thead class="bg-slate-50 text-slate-700">
                 <tr>
@@ -11,7 +15,7 @@
                     <th scope="col" class="p-3 font-semibold">Permitted tests</th>
                     <th scope="col" class="p-3 font-semibold">Turned on by</th>
                     <th scope="col" class="p-3 font-semibold">Older visit grants</th>
-                    <th scope="col" class="p-3 font-semibold"><span class="sr-only">Actions</span></th>
+                    <th scope="col" class="p-3 font-semibold">Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -29,10 +33,10 @@
                         <td class="p-3">{{ $current?->allowedTestsLabel() ?? '—' }}</td>
                         <td class="p-3">@if($current){{ $current->doctor->name }}<br><span class="text-slate-500">{{ $current->created_at->timezone('Asia/Manila')->format('M j, Y') }}</span>@else — @endif</td>
                         <td class="p-3">{{ $olderGrants->get($nurse->id, 0) ?: '—' }}</td>
-                        <td class="p-3 text-right"><a href="{{ route('nurse-authorizations.show', $nurse) }}" class="inline-block rounded-lg border border-emerald-800 px-4 py-2 font-semibold text-emerald-800" aria-label="Manage {{ $nurse->name }}">Manage</a></td>
+                        <td class="whitespace-nowrap p-3"><a href="{{ route('nurse-authorizations.show', $nurse) }}" class="inline-block whitespace-nowrap font-semibold text-emerald-800 underline" aria-label="Manage {{ $nurse->name }}">Manage</a></td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="p-6 text-slate-600">No active nurse accounts with follow-up access.</td></tr>
+                    <tr><td colspan="6" class="p-6 text-slate-600">No nurses match these filters.</td></tr>
                 @endforelse
             </tbody>
         </table>
