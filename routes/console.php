@@ -15,3 +15,5 @@ Artisan::command('followups:remind', function () {
 
 // Optional: open pages already trigger this check; the scheduler only helps when nobody is signed in.
 Schedule::command('followups:remind')->hourly();
+
+Schedule::command('database:backup')->dailyAt('18:00')->timezone('Asia/Manila')->withoutOverlapping();
