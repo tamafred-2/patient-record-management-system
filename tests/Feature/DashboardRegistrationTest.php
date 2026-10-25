@@ -40,7 +40,7 @@ class DashboardRegistrationTest extends TestCase
         $user->assignRole('Information Staff');
         $this->actingAs($user)->post('/patients', ['birth_date' => '2000-01-10', 'sex' => 'Female', 'barangay' => 'Example Barangay', 'municipality' => 'Calasiao', 'province' => 'Pangasinan', 'first_name' => 'Fictional', 'last_name' => 'Queue']);
         $patient = Patient::firstOrFail();
-        $service = Service::firstOrFail();
+        $service = Service::where('seed_key', 'LABORATORY')->firstOrFail();
         foreach (range(1, 25) as $number) {
             Visit::forceCreate(['patient_id' => $patient->id, 'service_id' => $service->id, 'created_by' => $user->id, 'visit_number' => 'BATCH-'.$number, 'queue_reference' => 'LOAD-'.$number, 'visit_date' => now('Asia/Manila')->toDateString(), 'status' => 'OPEN']);
         }

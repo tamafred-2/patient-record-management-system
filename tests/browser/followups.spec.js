@@ -46,11 +46,14 @@ test('doctor authorizes a nurse from the nurse list and medtech receives the att
     await doctor.screenshot({ path: 'storage/framework/testing/nurse-authorization-list.png', fullPage: true });
 
     const nurse = await login('nurse');
-    await expect(nurse.getByText(/You can order laboratory tests for \d+ visits?/)).toBeVisible();
+    await expect(nurse.getByText(/You can order laboratory tests for \d+ visits?/)).toHaveCount(0);
+    await expect(nurse.getByText('Open authorized visits', { exact: true })).toHaveCount(0);
     await nurse.getByRole('button', { name: /^Notifications/ }).click();
     const bellPanel = nurse.getByRole('region', { name: 'Recent notifications' });
     await bellPanel.getByRole('link', { name: /Demo Doctor.*turned on your laboratory ordering authorization/ }).click();
     await expect(nurse).toHaveURL(/assessments\?authorized=1/);
+    await expect(nurse.getByText(/Your authorized follow-up visits:/)).toHaveCount(0);
+    await expect(nurse.getByText(/Pending reassessment requests:/)).toHaveCount(0);
     await nurse.getByRole('row').filter({ hasText: 'DEMO-VISIT-1' }).getByRole('link', { name: 'Order follow-up tests' }).click();
     await expect(nurse).toHaveURL(url);
     await expect(nurse.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible();

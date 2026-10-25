@@ -32,7 +32,7 @@ class LaboratoryTest extends TestCase
         $staff->assignRole('Information Staff');
         $this->actingAs($staff)->post('/patients', ['birth_date' => '2000-01-10', 'sex' => 'Female', 'barangay' => 'Example Barangay', 'municipality' => 'Calasiao', 'province' => 'Pangasinan', 'first_name' => 'Fictional', 'last_name' => 'Verification'])->assertRedirect();
         $this->patient = Patient::firstOrFail();
-        $this->post(route('patients.visits.store', $this->patient), ['service_id' => Service::first()->id, 'visit_date' => now('Asia/Manila')->toDateString(), 'queue_reference' => 'TEST-LAB'])->assertSessionHasNoErrors()->assertRedirect();
+        $this->post(route('patients.visits.store', $this->patient), ['service_id' => Service::where('seed_key', 'LABORATORY')->firstOrFail()->id, 'visit_date' => now('Asia/Manila')->toDateString(), 'queue_reference' => 'TEST-LAB'])->assertSessionHasNoErrors()->assertRedirect();
         $this->visit = Visit::firstOrFail();
         $this->officer = User::factory()->create();
         $this->officer->assignRole('MedTech');

@@ -94,6 +94,8 @@ class PrintoutTest extends TestCase
 
     public function test_external_laboratory_request_prints_only_for_externally_advised_tests(): void
     {
+        $this->visit->service_id = Service::where('seed_key', 'LABORATORY')->firstOrFail()->id;
+        $this->visit->save();
         $this->as('medtech');
         $lab = fn (string $status, array $extra = []) => $this->post(route('laboratory.store', [$this->patient, $this->visit]), ['test_name' => 'Blood typing', 'availability_status' => $status, 'lock_version' => 0, 'submission_token' => (string) Str::uuid()] + $extra)->assertSessionHasNoErrors();
         $lab('EXTERNAL_ADVISED', ['external_advice' => 'Fictional advice: reagent unavailable, use an accredited laboratory.']);
