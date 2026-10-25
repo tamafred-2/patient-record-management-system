@@ -25,7 +25,7 @@ test('open pages receive new work alerts without reloading', async ({ browser, b
 
     await staff.goto('/patients');
     await staff.getByLabel('Patient number or name', { exact: true }).fill('DEMO-PATIENT-1');
-    await staff.getByRole('button', { name: 'Search', exact: true }).click();
+    await staff.getByRole('button', { name: 'Apply filters', exact: true }).click();
     await staff.getByRole('row').filter({ hasText: 'DEMO-PATIENT-1' }).getByRole('link').first().click();
     await staff.getByRole('link', { name: 'Start visit', exact: true }).click();
     await staff.getByLabel('Requested service (required)').selectOption({ label: 'Consultation' });

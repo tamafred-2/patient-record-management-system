@@ -30,7 +30,6 @@ test('nurse authorization filters and Manage use the existing table link style',
   await page.goto('/nurse-authorizations');
   await expect(page.getByText('Manage nurses’ laboratory ordering access for patients they assessed.')).toBeVisible();
   await page.getByRole('searchbox', { name: 'Search nurses, doctors or permitted tests', exact: true }).fill('nurse@rhu.test');
-  await page.getByLabel('Laboratory ordering', { exact: true }).selectOption('off');
   await page.getByRole('button', { name: 'Apply filters' }).click();
   const manage = page.getByRole('link', { name: 'Manage Demo Nurse', exact: true });
   await expect(manage).toHaveClass(/underline/);
