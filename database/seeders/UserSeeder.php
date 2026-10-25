@@ -43,6 +43,7 @@ class UserSeeder extends Seeder
                     'password' => self::PASSWORD,
                 ]);
                 $user->is_active = true;
+                $user->primary_role = $role;
                 $user->save();
                 $user->assignRole($role);
                 activity('staff')->performedOn($user)

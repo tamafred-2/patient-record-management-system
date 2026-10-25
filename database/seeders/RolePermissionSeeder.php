@@ -20,6 +20,10 @@ class RolePermissionSeeder extends Seeder
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
+        foreach (['certificates.prepare', 'certificates.print', 'assessments.request', 'followups.authorize', 'followups.request', 'visits.prioritize', 'vitals.midwife'] as $name) {
+            Permission::findOrCreate($name, 'web');
+        }
+
         // Add clinical permissions with their feature's record-scoping policies.
         foreach (['midwife-care.view', 'midwife-care.record', 'vaccinations.view', 'vaccinations.record', 'analytics.view', 'analytics.overview', 'dashboard.view', 'users.manage', 'roles.manage', 'patients.view', 'patients.create', 'patients.update', 'visits.view', 'visits.create', 'visits.complete', 'visits.monitor', 'settings.manage', 'vitals.view', 'vitals.create', 'vitals.update', 'eligibility.view', 'eligibility.verify', 'consultations.view', 'itr.create', 'itr.update', 'prescriptions.view', 'prescriptions.create', 'prescriptions.update', 'pharmacy.view', 'pharmacy.dispense', 'laboratory.view', 'laboratory.record', 'audit.view', 'dispositions.view', 'dispositions.record', 'history.view', 'reports.view', 'reports.export', 'visits.export'] as $name) {
             Permission::findOrCreate($name, 'web');
@@ -37,6 +41,7 @@ class RolePermissionSeeder extends Seeder
                 $role->givePermissionTo(['users.manage', 'roles.manage', 'settings.manage', 'eligibility.view', 'eligibility.verify', 'audit.view', 'reports.view', 'reports.export']);
             }
             if ($name === 'Doctor / Medical Officer') {
+                $role->givePermissionTo(['certificates.prepare', 'certificates.print', 'assessments.request', 'followups.authorize', 'visits.prioritize']);
                 $role->givePermissionTo(['visits.complete', 'consultations.view', 'itr.create', 'itr.update', 'prescriptions.view', 'prescriptions.create', 'prescriptions.update', 'history.view', 'dispositions.view', 'dispositions.record', 'visits.export']);
             }
             if ($name === 'Pharmacist') {
@@ -46,13 +51,14 @@ class RolePermissionSeeder extends Seeder
                 $role->givePermissionTo(['laboratory.view', 'laboratory.record']);
             }
             if ($name === 'Midwife') {
-                $role->givePermissionTo(['vaccinations.view', 'vaccinations.record', 'midwife-care.view', 'midwife-care.record']);
+                $role->givePermissionTo(['vaccinations.view', 'vaccinations.record', 'midwife-care.view', 'midwife-care.record', 'vitals.midwife']);
             }
             if ($name === 'Nurse') {
+                $role->givePermissionTo(['followups.request', 'visits.prioritize']);
                 $role->givePermissionTo(['vitals.view', 'vitals.create', 'vitals.update']);
             }
             if ($name === 'Information Staff') {
-                $role->givePermissionTo(['patients.view', 'patients.create', 'patients.update', 'visits.view', 'visits.create', 'visits.complete', 'history.view']);
+                $role->givePermissionTo(['patients.view', 'patients.create', 'patients.update', 'visits.view', 'visits.create', 'visits.complete', 'visits.prioritize', 'history.view']);
             }
         }
 
