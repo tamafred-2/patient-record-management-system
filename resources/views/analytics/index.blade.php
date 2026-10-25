@@ -6,7 +6,7 @@
     @if($errors->any())<x-alert type="error" class="mt-5">{{ $errors->first() }}</x-alert>@endif
     <form method="GET" class="my-6 flex flex-wrap items-end gap-4">
         @foreach(['from'=>'From date','to'=>'To date'] as $key=>$label)
-            <div><label for="{{ $key }}" class="mb-2 block text-sm font-medium">{{ $label }}</label><input type="date" id="{{ $key }}" name="{{ $key }}" value="{{ old($key,$$key) }}" required class="max-w-full rounded-lg border border-slate-300 bg-white p-3"></div>
+            <div><label for="{{ $key }}" class="mb-2 block text-sm font-medium">{{ $label }}</label><input type="date" data-history-date data-range-days="365" max="{{ now('Asia/Manila')->toDateString() }}" id="{{ $key }}" name="{{ $key }}" value="{{ old($key,$$key) }}" required class="max-w-full rounded-lg border border-slate-300 bg-white p-3"></div>
         @endforeach
         <input type="hidden" name="interval" value="{{ $interval }}">
         <x-button>Update analytics</x-button>

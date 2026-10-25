@@ -10,8 +10,8 @@
                 @default {{ $visit->service?->name ?? 'Former service' }}
             @endswitch
         </td>
-        <td class="p-3">{{ $visit->queue_reference ?? 'Not recorded' }}</td>
-        <td class="p-3">{{ $visit->status }}</td>
+        <td class="p-3">{{ $visit->queue_reference ?? 'Not recorded' }}<x-visit-priority :visit="$visit" class="mt-1 block w-fit" /></td>
+        <td class="p-3">{{ $visit->status }}@if($sectionType === 'assessments' && $visit->pendingAssessmentRequest)<span class="block text-amber-800">Reassessment requested</span>@endif</td>
         <td class="p-3">
             @switch($sectionType)
                 @case('assessments') <a class="font-semibold text-emerald-800 underline" href="{{ route('assessments.edit', [$visit->patient, $visit]) }}">Open assessment</a> @break

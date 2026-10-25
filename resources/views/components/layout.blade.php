@@ -1,4 +1,6 @@
 @props(['title' => 'Dashboard', 'showGuestHeader' => true])
+{{-- Scroll-queue batches are returned as JSON, so they skip the notification count. --}}
+@php($unreadNotifications = auth()->check() && ! request()->hasHeader('X-Scroll-Queue') ? auth()->user()->unreadNotifications()->count() : 0)
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -94,12 +96,18 @@
                 @can('consultations.view')
                     <a href="{{ route('consultations.index') }}" aria-label="Doctor visits" title="Doctor visits" @if(request()->routeIs('consultations.*', 'itr.*')) aria-current="page" @endif class="sidebar-link"><x-sidebar-icon name="visits" /><span class="sidebar-label">Doctor visits</span></a>
                 @endcan
+                @if(App\Support\FollowupAccess::doctor(auth()->user()))
+                    <a href="{{ route('nurse-authorizations.index') }}" aria-label="Nurse authorization" title="Nurse authorization" @if(request()->routeIs('nurse-authorizations.*')) aria-current="page" @endif class="sidebar-link"><x-sidebar-icon name="staff" /><span class="sidebar-label">Nurse authorization</span></a>
+                @endif
                 @can('laboratory.view')
                     <a href="{{ route('laboratory.index') }}" aria-label="Laboratory" title="Laboratory" @if(request()->routeIs('laboratory.*')) aria-current="page" @endif class="sidebar-link"><x-sidebar-icon name="visits" /><span class="sidebar-label">Laboratory</span></a>
                 @endcan
                 @can('midwife-care.view')
                     <a href="{{ route('midwife-care.index') }}" aria-label="Midwife care" title="Midwife care" @if(request()->routeIs('midwife-care.*')) aria-current="page" @endif class="sidebar-link"><x-sidebar-icon name="visits" /><span class="sidebar-label">Midwife care</span></a>
                 @endcan
+                @if(auth()->user()->can('midwife-care.view') || auth()->user()->can('vaccinations.view'))
+                    <a href="{{ route('midwife-report.index') }}" aria-label="Midwife report" title="Midwife report" @if(request()->routeIs('midwife-report.*')) aria-current="page" @endif class="sidebar-link"><x-sidebar-icon name="analytics" /><span class="sidebar-label">Midwife report</span></a>
+                @endif
                 @can('vaccinations.view')
                     <a href="{{ route('vaccinations.index') }}" aria-label="Vaccination" title="Vaccination" @if(request()->routeIs('vaccinations.*')) aria-current="page" @endif class="sidebar-link"><x-sidebar-icon name="visits" /><span class="sidebar-label">Vaccination</span></a>
                 @endcan
@@ -157,12 +165,32 @@
         @endif
     @endauth
     <div @class(['staff-content' => auth()->check()])>
+        @auth
+            <header class="page-header sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+                <div class="page-header-inner mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3 sm:px-8">
+                    <p class="min-w-0 truncate text-base font-semibold text-slate-800 sm:text-lg">{{ $title }}</p>
+                    <div class="flex shrink-0 items-center gap-3">
+                        @unless(auth()->user()->must_change_password)<x-notification-bell :unread="$unreadNotifications" />@endunless
+                        <span class="hidden items-center gap-2 sm:flex">
+                            <span aria-hidden="true" class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-sm font-semibold text-white">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}</span>
+                            <span class="max-w-48 truncate text-sm font-medium text-slate-700">{{ auth()->user()->name }}</span>
+                        </span>
+                    </div>
+                </div>
+            </header>
+        @endauth
         <main id="main" tabindex="-1" class="mx-auto min-w-0 max-w-6xl px-5 py-8 sm:px-8 lg:py-10">
             @if(session('status'))<x-alert class="mb-6" dismissible>{{ session('status') }}</x-alert>@endif
             @if(session('auth_notice'))<x-alert type="error" title="Session updated" class="mb-6">{{ session('auth_notice') }}</x-alert>@endif
             {{ $slot }}
         </main>
     </div>
+    <x-validation-modal />
+    @auth
+        @unless(auth()->user()->must_change_password)
+            <div id="notification-toasts" data-notification-poll="{{ route('notifications.poll') }}" data-notifications-url="{{ route('notifications.index') }}" aria-live="polite" class="pointer-events-none fixed bottom-4 right-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2"></div>
+        @endunless
+    @endauth
     @livewireScripts
 </body>
 </html>

@@ -33,6 +33,8 @@
 @media (min-width: 64rem) {
     .staff-sidebar { width: var(--sidebar-width, 288px); }
     .staff-content { padding-left: var(--sidebar-width, 288px); }
+    .staff-content > main { width: 90%; max-width: none; padding-left: 0; padding-right: 0; }
+    .staff-content > .page-header > .page-header-inner { width: 90%; max-width: none; padding-left: 0; padding-right: 0; }
     .sidebar-collapsed .staff-sidebar { width: 5rem; }
     .sidebar-collapsed .staff-content { padding-left: 5rem; }
     .sidebar-collapsed .sidebar-label { display: none; }
@@ -89,3 +91,17 @@
 .fixed-visit-table thead tr { height: 44px; }
 .fixed-visit-table tbody tr { height: 70px; }
 .fixed-visit-table th, .fixed-visit-table td { white-space: nowrap; }
+
+.queue-viewport { height: min(744px, 55dvh); overflow-anchor: none; scrollbar-gutter: stable; overscroll-behavior: contain; }
+.queue-viewport > table { width: 100%; }
+.queue-viewport > table > thead { position: sticky; top: 0; z-index: 10; background: #f8fafc; }
+.queue-viewport > table > thead tr { height: 44px; }
+.queue-viewport > table > tbody > tr { height: 70px; }
+.queue-viewport > table th, .queue-viewport > table td { white-space: nowrap; }
+.queue-end-space { height: 32px; }
+.scroll-queue[data-queue-kind="cards"] .queue-viewport { height: min(640px, 75vh); }
+.scroll-queue[data-queue-kind="cards"] [data-queue-items] { display: grid; gap: 1rem; padding: 1rem; }
+.queue-controls [hidden] { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+    .queue-viewport:focus-visible { scroll-behavior: smooth; }
+}

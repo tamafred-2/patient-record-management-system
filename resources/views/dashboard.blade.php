@@ -24,6 +24,42 @@
             <a href="{{ route('consultations.index', ['date' => $today]) }}" class="whitespace-nowrap rounded-lg bg-emerald-800 px-4 py-3 font-semibold text-white hover:bg-emerald-900 focus-visible:outline-2 focus-visible:outline-emerald-700">Open doctor visits</a>
         @endif
     </div>
+    @if($nurseOrdering ?? 0)
+        <a href="{{ route('assessments.index', ['authorized' => 1]) }}" class="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-300 bg-emerald-50 p-5 hover:border-emerald-600">
+            <span><strong class="block text-emerald-950">You can order laboratory tests for {{ $nurseOrdering }} {{ Str::plural('visit', $nurseOrdering) }}</strong><span class="text-sm text-emerald-900">A doctor turned on nurse ordering for patients you assessed.</span></span>
+            <span class="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">Open authorized visits</span>
+        </a>
+    @endif
+    @if(($followUps ?? collect())->isNotEmpty())
+        @php($followUpDay = now('Asia/Manila')->startOfDay())
+        <section class="mt-6 rounded-xl border border-slate-200 bg-white p-5" aria-labelledby="follow-ups-title" id="follow-ups">
+            <h2 id="follow-ups-title" class="text-lg font-semibold">Follow-up return visits</h2>
+            <p class="mt-1 text-sm text-slate-600">Due, overdue or within the next 7 days, for patients who have not returned yet.</p>
+            <div class="mt-3 overflow-x-auto">
+                <table class="min-w-full text-left text-sm">
+                    <thead class="text-slate-600"><tr><th scope="col" class="p-2">Return date</th><th scope="col" class="p-2">Patient</th><th scope="col" class="p-2">Reason</th><th scope="col" class="p-2">Set by</th><th scope="col" class="p-2"><span class="sr-only">Action</span></th></tr></thead>
+                    <tbody>
+                        @foreach($followUps as $followUp)
+                            @php([$tag, $tone] = $followUp->follow_up_on->lt($followUpDay) ? ['Overdue', 'border-amber-300 bg-amber-50 text-amber-900'] : ($followUp->follow_up_on->isSameDay($followUpDay) ? ['Today', 'border-emerald-300 bg-emerald-50 text-emerald-900'] : ['Upcoming', 'border-slate-300 bg-slate-50 text-slate-700']))
+                            <tr class="border-t border-slate-100 align-top">
+                                <td class="p-2 whitespace-nowrap">{{ $followUp->follow_up_on->format('M j, Y') }} <span class="ml-1 rounded-full border px-2 py-0.5 text-xs font-bold {{ $tone }}">{{ $tag }}</span></td>
+                                <td class="p-2"><strong>{{ $followUp->patient->full_name }}</strong><br><span class="text-slate-500">{{ $followUp->patient->patient_number }} &middot; from {{ $followUp->visit_number }}</span></td>
+                                <td class="p-2">{{ $followUp->follow_up_reason }}</td>
+                                <td class="p-2">{{ $followUp->followUpSetter?->name ?? '—' }}</td>
+                                <td class="p-2 text-right">
+                                    @can('viewAny', App\Models\Visit::class)
+                                        <a class="font-semibold text-emerald-800 underline" href="{{ route('patients.show', $followUp->patient) }}">Open patient</a>
+                                    @else
+                                        <a class="font-semibold text-emerald-800 underline" href="{{ route('consultations.show', [$followUp->patient, $followUp]) }}">Open visit</a>
+                                    @endcan
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    @endif
     <section class="mt-8" aria-labelledby="dashboard-summary-title">
         <h2 id="dashboard-summary-title" class="sr-only">Today's summary</h2>
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

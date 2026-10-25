@@ -8,6 +8,7 @@
         <p><strong>Status:</strong> <span>{{ $visit->status }}</span></p>
         <p><strong>Pharmacy:</strong> <span>{{ $review['pharmacy'] }}</span></p>
         <p><strong>Pending laboratory services:</strong> {{ $review['pendingLabs'] }}</p>
+        <p><strong>Pending reassessment requests:</strong> {{ $review['pendingAssessments'] }}</p>
         @if($review['midwifeCareCount'] > 0 || $visit->service->seed_key === 'MIDWIFE_CARE')<p><strong>Midwife care entries:</strong> {{ $review['midwifeCareCount'] }}</p>@endif
         @if($review['vaccinationCount'] > 0 || $visit->service->seed_key === 'VACCINATION')<p><strong>Vaccination entries:</strong> {{ $review['vaccinationCount'] }}</p>@endif
         @if($visit->status === 'COMPLETED')
@@ -15,6 +16,7 @@
             @if($visit->completion_remarks)<p class="whitespace-pre-wrap break-words">{{ $visit->completion_remarks }}</p>@endif
         @elseif($visit->status === 'OPEN')
             @if($review['blocked'])
+                @if($review['pendingAssessments'])<p class="text-amber-800">The nurse must complete the requested reassessment, or a doctor must withdraw the request with a reason, before this visit can close.</p>@endif
                 <p class="text-amber-800">Complete the pending laboratory work or record external laboratory advice where applicable. Any prescription draft must be reviewed and issued by its doctor before this visit can close.</p>
             @else
                 @if($review['unreleased'])<p class="text-amber-800">Check with Pharmacy before closing. Some medicines have not been released. Explain the actual reason, such as unavailable medicine or the patient declining the remaining supply. Completion does not mark these medicines as dispensed.</p>@endif

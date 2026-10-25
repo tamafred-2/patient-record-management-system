@@ -7,6 +7,7 @@
         <p class="mt-2">{{ $patient->patient_number }} &middot; Birth date: {{ $patient->birth_date?->format('M j, Y') ?? 'Not recorded' }}</p>
         <p class="mt-2 text-sm text-slate-600">{{ $visit->visit_number }} &middot; {{ $visit->visit_date->format('M j, Y') }} &middot; Queue: {{ $visit->queue_reference ?? 'Not recorded' }} &middot; {{ $visit->status }}</p>
     </section>
+    <x-midwife-vitals :patient="$patient" :visit="$visit" />
     @if($errors->any())<x-alert type="error" class="mb-6">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach<a class="underline" href="{{ $record ? route('vaccinations.edit', [$patient, $visit, $record]) : route('vaccinations.show', [$patient, $visit]) }}">Reload current record</a></x-alert>@endif
     @if($canEdit)
         <form method="POST" action="{{ $record ? route('vaccinations.update', [$patient, $visit, $record]) : route('vaccinations.store', [$patient, $visit]) }}" class="space-y-5 rounded-xl border border-slate-200 bg-white p-6">
@@ -32,7 +33,7 @@
     <section class="mt-8 space-y-4">
         <h2 class="text-xl font-semibold">Patient vaccination history</h2>
         <p class="text-sm text-slate-500">Records entered in this application across this patient's visits. This is not a complete external immunization history.</p>
-        @forelse($history as $entry)
+        <x-scroll-queue :paginator="$history" id="history" kind="cards" label="Record history, scroll to load more"><div data-queue-items>@forelse($history as $entry)
             <article class="space-y-2 rounded-xl border border-slate-200 bg-white p-5">
                 <h3 class="font-semibold">{{ $entry->vaccine_name }} &middot; {{ $entry->dose }}</h3>
                 <p class="text-sm">Administered {{ $entry->administered_on->format('M j, Y') }} by {{ $entry->administered_by }} &middot; Visit {{ $entry->visit->visit_number }}</p>
@@ -41,7 +42,7 @@
                 <p class="text-xs text-slate-500">Entered by {{ $entry->recorder?->name }} &middot; Last saved {{ $entry->updated_at->timezone('Asia/Manila')->format('M j, Y g:i A') }}</p>
                 @if($canEdit && $entry->visit_id === $visit->id)<a class="inline-block font-semibold text-emerald-800 underline" href="{{ route('vaccinations.edit', [$patient, $visit, $entry]) }}">Edit vaccination entry</a>@endif
             </article>
-        @empty<p class="text-slate-500">No vaccinations recorded yet.</p>@endforelse
-        {{ $history->links() }}
+        @empty<p class="text-slate-500">No vaccinations recorded yet.</p>@endforelse</div></x-scroll-queue>
+        
     </section>
 </x-layout>

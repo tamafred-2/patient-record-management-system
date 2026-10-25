@@ -5,7 +5,7 @@
     <form method="POST" action="{{ route('staff.update', $staff) }}" class="mt-8 max-w-2xl space-y-6 rounded-xl border border-slate-200 bg-white p-6" x-data @submit="if (!confirm('Apply these role and account status changes? Deactivated accounts will lose access.')) $event.preventDefault()">
         @csrf @method('PATCH')
         @if(auth()->user()->is($staff))<p class="text-sm text-slate-600">You can add or remove your additional roles here. Your own account must stay active, and your System Admin role must stay assigned.</p>@endif
-        @include('staff.roles', ['selectedRoles' => $staff->getRoleNames()->all(), 'lockAdminRole' => auth()->user()->is($staff) && $staff->hasRole('System Admin')])
+        @include('staff.roles')
         <div><label for="is_active" class="mb-2 block text-sm font-semibold">Account status</label>
             <select id="is_active" name="is_active" class="w-full rounded-lg border border-slate-300 p-3">
                 <option value="1" @selected(old('is_active', (int) $staff->is_active) == 1)>Activated — can sign in</option>

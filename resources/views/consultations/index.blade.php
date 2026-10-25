@@ -1,6 +1,6 @@
 <x-layout title="Doctor visits">
     <h1 class="text-3xl font-semibold">Doctor visits</h1>
-    <p class="mt-2 text-slate-600">Review existing visits and recorded measurements. This list includes all services.</p>
+    <p class="mt-2 text-slate-600">Visits appear here after vital signs are recorded. Review the nurse assessment before consultation. This list includes all services.</p>
     <p class="mt-3 text-sm font-semibold text-emerald-800">{{ $allDates ? 'All dates' : $date }}@if($record) · {{ ['with_itr' => 'With saved ITR', 'without_itr' => 'Without saved ITR', 'issued' => 'Issued prescriptions'][$record] }}@endif · {{ $visits->total() }} visits</p>
     <div class="my-6 grid items-end gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.45fr)_minmax(0,1fr)]">
     <form method="GET" action="{{ route('consultations.index') }}" aria-label="Filter doctor visit records" class="flex min-w-0 items-end gap-2">
@@ -29,7 +29,7 @@
             </select>
             <div class="min-w-[155px] flex-1" x-show="!all" @if($allDates) x-cloak @endif>
                 <label for="date" class="sr-only">Specific date</label>
-                <input id="date" name="date" type="date" value="{{ $date }}" :disabled="all" :required="!all" @disabled($allDates) @required(!$allDates) class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus:border-emerald-700 focus:outline-2 focus:outline-emerald-700">
+                <input id="date" name="date" type="date" data-history-date max="{{ now('Asia/Manila')->toDateString() }}" value="{{ $date }}" :disabled="all" :required="!all" @disabled($allDates) @required(!$allDates) class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus:border-emerald-700 focus:outline-2 focus:outline-emerald-700">
             </div>
             </div>
         </div>
@@ -45,8 +45,8 @@
     </div>
     @if($errors->any())<x-alert type="error">{{ $errors->first() }}</x-alert>@endif
     <div class="rounded-xl border border-slate-200 bg-white">
-        <div class="overflow-auto" style="height: 744px" tabindex="0" role="region" aria-label="Doctor visits, scroll to view more">
-        <table class="dashboard-visits-table w-full text-left text-sm">
+        <x-scroll-queue :paginator="$visits" id="visits" label="Visits, scroll to load more">
+<table class="dashboard-visits-table w-full text-left text-sm">
             <caption class="sr-only">Visits for doctor review</caption>
             <thead class="sticky top-0 z-10 bg-slate-100 text-slate-500"><tr><th scope="col" class="p-3">Patient</th><th scope="col" class="p-3">Visit / service</th><th scope="col" class="p-3">Queue reference</th><th scope="col" class="p-3">Vital signs</th><th scope="col" class="p-3">Action</th></tr></thead>
             <tbody>
@@ -54,23 +54,13 @@
                     <tr class="border-t border-slate-100">
                         <td class="p-3"><strong>{{ $visit->patient->full_name }}</strong><p class="text-slate-500">{{ $visit->patient->patient_number }}</p></td>
                         <td class="p-3">{{ $visit->visit_number }}<p class="text-slate-500">{{ $visit->service->name }}</p></td>
-                        <td class="p-3">{{ $visit->queue_reference ?? 'Not recorded' }}</td>
-                        <td class="p-3">{{ $visit->vitalSign ? 'Recorded' : 'Pending' }}</td>
+                        <td class="p-3">{{ $visit->queue_reference ?? 'Not recorded' }}<x-visit-priority :visit="$visit" class="mt-1 block w-fit" /></td>
+                        <td class="p-3">Recorded @if($visit->pendingAssessmentRequest)<span class="mt-1 block font-semibold text-amber-800">Reassessment requested</span>@endif</td>
                         <td class="p-3"><a class="font-semibold text-emerald-800 underline" href="{{ route('consultations.show', [$visit->patient, $visit]) }}">Review visit</a></td>
                     </tr>
                 @endforeach
             </tbody>
         </table>
-        @if($visits->isEmpty())
-            <div class="flex flex-col items-center justify-center px-6 text-center" style="height: 700px" role="status">
-                <div class="mb-4 rounded-full bg-slate-100 p-4 text-slate-400">
-                    <svg aria-hidden="true" class="h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z M16 3v4 M8 3v4 M3 11h18 M9 16h6" /></svg>
-                </div>
-                <p class="font-semibold text-slate-700">No matching visits</p>
-                <p class="mt-2 text-sm text-slate-500">Try a different date, search or record filter.</p>
-            </div>
-        @endif
-        </div>
+</x-scroll-queue>
     </div>
-    <div class="mt-6">{{ $visits->links() }}</div>
 </x-layout>

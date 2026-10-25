@@ -8,6 +8,7 @@
         'staff' => 'M8 3h8v4H8z M8 5H5v16h14V5h-3 M8 12h8 M8 16h5',
         'collapse' => 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M9 3v18',
         'logout' => 'M9 5H4v14h5 M9 12h12 M17 8l4 4-4 4',
+        'bell' => 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9 M10.3 21a1.94 1.94 0 0 0 3.4 0',
     ];
 @endphp
 <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 shrink-0"><path d="{{ $paths[$name] ?? $paths['dashboard'] }}" /></svg>

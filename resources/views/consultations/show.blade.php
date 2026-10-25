@@ -7,7 +7,7 @@
     <a href="{{ route('consultations.index', ['date' => $visit->visit_date->toDateString()]) }}" class="text-emerald-800 underline">Back to doctor visits</a>
     <h1 class="mt-5 text-3xl font-semibold">Visit summary</h1>
     <section class="mt-6 rounded-xl border border-slate-200 bg-white p-6">
-        <h2 class="text-xl font-semibold">{{ $patient->full_name }}</h2>
+        <div class="flex flex-wrap items-center gap-3"><h2 class="text-xl font-semibold">{{ $patient->full_name }}</h2><x-visit-priority-inline :patient="$patient" :visit="$visit" /></div>
         <p class="mt-2 text-sm text-slate-600">{{ $patient->patient_number }} &middot; Birth date: {{ $patient->birth_date?->format('M j, Y') ?? 'Not recorded' }}</p>
         <dl class="mt-5 grid gap-4 sm:grid-cols-2">
             <div><dt class="text-sm text-slate-500">Visit</dt><dd>{{ $visit->visit_number }}</dd></div>
@@ -17,6 +17,8 @@
             <div><dt class="text-sm text-slate-500">Visit status</dt><dd>{{ $visit->status }}</dd></div>
         </dl>
     </section>
+    <x-visit-follow-up-panel :patient="$patient" :visit="$visit" class="mt-6" />
+    <x-visit-documents :visit="$visit" class="mt-6" />
     <section class="mt-6 rounded-xl border border-slate-200 bg-white p-6">
         <h2 class="text-xl font-semibold">Vital signs</h2>
         @if(!$vitals)<p class="mt-3 text-slate-600">Vital signs have not been recorded for this visit.</p>@endif
@@ -34,6 +36,7 @@
         @if($confirmation?->remarks)<p class="mt-4 whitespace-pre-wrap break-words text-sm">{{ $confirmation->remarks }}</p>@endif
         @if($confirmation)<p class="mt-4 text-sm text-slate-500">Last updated {{ $confirmation->updated_at->timezone('Asia/Manila')->format('M j, Y g:i A') }}</p>@endif
     </section>
+    @include('consultations.assessment')
     <a href="{{ route('itr.edit', [$patient, $visit]) }}" class="mt-6 inline-block rounded-lg bg-emerald-800 px-5 py-3 font-semibold text-white">Open Digital ITR</a>
     @can('prescriptions.view')
         <a href="{{ route('prescriptions.show', [$patient, $visit]) }}" class="mt-6 inline-block rounded-lg border border-emerald-800 px-5 py-3 font-semibold text-emerald-800">Open prescription</a>
@@ -44,4 +47,5 @@
     @can('complete', $visit)
         <a class="mt-6 inline-block rounded-lg bg-emerald-800 px-4 py-3 font-semibold text-white" href="{{ route('visits.completion', [$patient, $visit]) }}">{{ $visit->status === 'OPEN' ? 'Review and complete visit' : 'View completion details' }}</a>
     @endcan
+    @can('certificates.prepare')<a class="mt-6 inline-block rounded-lg border border-emerald-800 px-5 py-3 font-semibold text-emerald-800" href="{{ route('certificates.index', [$patient, $visit]) }}">Medical certificates</a>@endcan
 </x-layout>

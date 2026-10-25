@@ -11,8 +11,8 @@
         @if($search !== '')<a href="{{ route('patients.index') }}" class="px-3 py-3 text-sm text-emerald-800 underline">Clear search</a>@endif
     </form>
     <p class="mb-3 text-sm text-slate-600">{{ $patients->total() }} {{ Str::plural('patient', $patients->total()) }} found</p>
-    <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table class="w-full text-left text-sm">
+    <x-scroll-queue :paginator="$patients" id="patients" label="Patients, scroll to load more">
+<table class="w-full text-left text-sm">
             <caption class="sr-only">Patient search results</caption>
             <thead class="bg-slate-100"><tr><th scope="col" class="p-4">Patient number</th><th scope="col" class="p-4">Name</th><th scope="col" class="p-4">Date of birth</th><th scope="col" class="p-4">Barangay</th></tr></thead>
             <tbody>
@@ -23,6 +23,6 @@
                 @endforelse
             </tbody>
         </table>
-    </div>
-    <div class="mt-6">{{ $patients->links() }}</div>
+</x-scroll-queue>
+    
 </x-layout>

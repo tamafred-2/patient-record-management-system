@@ -5,5 +5,5 @@
     <p class="mt-3 text-sm font-semibold text-emerald-800">{{ $allDates ? 'All dates' : $date }} ? {{ $visits->total() }} visits</p>
     @if($errors->any())<x-alert type="error">{{ $errors->first() }}</x-alert>@endif
     @include('pharmacy.table')
-    <div class="mt-6">{{ $visits->links() }}</div>
+    
 </x-layout>

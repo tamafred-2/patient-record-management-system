@@ -10,7 +10,7 @@
             @foreach($range ? ['from' => ['From date', $from], 'to' => ['To date', $to]] : ['date' => ['Specific date', $date]] as $name => $field)
                 <div>
                     <label for="{{ $name }}" class="{{ $range ? 'mb-2 block text-sm font-medium' : 'sr-only' }}">{{ $field[0] }}</label>
-                    <input id="{{ $name }}" name="{{ $name }}" type="date" value="{{ $field[1] }}" :disabled="all" :required="!all" @disabled($allDates) @required(!$allDates) class="w-40 rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus:border-emerald-700 focus:outline-2 focus:outline-emerald-700">
+                    <input id="{{ $name }}" name="{{ $name }}" type="date" data-history-date @if($range) data-range-days="365" @endif max="{{ now('Asia/Manila')->toDateString() }}" value="{{ $field[1] }}" :disabled="all" :required="!all" @disabled($allDates) @required(!$allDates) class="w-40 rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus:border-emerald-700 focus:outline-2 focus:outline-emerald-700">
                 </div>
             @endforeach
         </div>
