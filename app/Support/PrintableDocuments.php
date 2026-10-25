@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Http\Controllers\PrintController;
 use App\Models\DispositionRecord;
+use App\Models\Prescription;
 use App\Models\User;
 use App\Models\Visit;
 
@@ -29,14 +30,16 @@ class PrintableDocuments
         }
         if ($user->can('consultations.view') && $user->can('certificates.print')) {
             foreach ($visit->medicalCertificates as $certificate) {
-                $add('Certificates', 'Medical certificate #'.$certificate->id, route('certificates.print', [$patient, $visit, $certificate]), $certificate->created_at->timezone('Asia/Manila')->format('M j, Y'));
+                $prepared = $certificate->created_at->timezone('Asia/Manila')->format('M j, Y');
+                $add('Certificates', 'Medical certificate #'.$certificate->id, route('certificates.print', [$patient, $visit, $certificate]), $prepared);
+                $add('Certificates', 'Medical certificate #'.$certificate->id.' (PDF)', route('certificates.pdf', [$patient, $visit, $certificate]), 'Download · '.$prepared);
             }
-            if ($user->can('certificates.prepare') && $visit->status === 'OPEN') {
+            if ($user->can('certificates.prepare') && $visit->isOpen()) {
                 $add('Certificates', 'Prepare a medical certificate', route('certificates.index', [$patient, $visit]), 'Opens the certificate editor');
             }
         }
         if (($user->can('prescriptions.view') || $user->can('pharmacy.view')) && $visit->prescription) {
-            $issued = $visit->prescription->status === 'ISSUED';
+            $issued = $visit->prescription->status === Prescription::ISSUED;
             $add('Medicines', 'Prescription', $issued ? route('prints.prescription', [$patient, $visit]) : null, $issued ? $visit->prescription->prescription_number : 'Not issued yet');
         }
         if ($user->can('dispositions.view')) {
@@ -45,6 +48,13 @@ class PrintableDocuments
             }
         }
         $labStaff = $user->can('laboratory.view');
+        if ($labStaff) {
+            foreach ($visit->laboratoryRecords->where('availability_status', 'PERFORMED_RHU') as $record) {
+                if ($record->result_rows || filled($record->result)) {
+                    $add('Laboratory', 'Laboratory result', route('prints.laboratory-result', [$patient, $visit, $record]), $record->test_name);
+                }
+            }
+        }
         $doctor = FollowupAccess::doctor($user);
         $nurse = FollowupAccess::nurse($user);
         foreach ($visit->laboratoryRecords->whereNotNull('order_reference')->groupBy('order_reference') as $order => $records) {

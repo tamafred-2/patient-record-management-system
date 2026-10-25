@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Models\VaccinationRecord;
 use App\Models\Visit;
 use App\Models\VitalSign;
+use App\Support\ListFilters;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -30,6 +31,7 @@ class AuditController extends Controller
         'disposition.recorded' => 'Referral or certificate request recorded',
         'report.exported' => 'Aggregate report exported',
         'visit.summary_exported' => 'Internal visit summary exported',
+        'certificate.pdf_downloaded' => 'Medical certificate PDF downloaded',
         'demo.workflow_seeded' => 'Fictional workflow seeded',
         'staff.created' => 'User account created', 'staff.access_updated' => 'User access updated',
         'staff.demo_seeded' => 'Demo account created', 'staff.admin_bootstrapped' => 'Administrator created',
@@ -61,8 +63,8 @@ class AuditController extends Controller
     {
         Gate::authorize('audit.view');
         $filters = $request->validate([
-            'from' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()],
-            'to' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()],
+            'from' => ListFilters::pastDate(),
+            'to' => ListFilters::pastDate(),
             'staff' => ['nullable', 'regex:/^(system|[1-9][0-9]*)$/'],
             'action' => ['nullable', Rule::in(array_keys(self::ACTIONS))],
         ]);

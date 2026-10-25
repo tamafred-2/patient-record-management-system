@@ -67,6 +67,22 @@ class MedicalCertificateTest extends TestCase
         $this->get(route('certificates.index', [$this->patient, $this->visit, 'copy' => $record->id]))->assertOk();
     }
 
+    public function test_saved_certificate_offers_print_and_separate_pdf_download(): void
+    {
+        $this->post(route('certificates.store', [$this->patient, $this->visit]), $this->data(['template' => 'examination']))->assertRedirect();
+        $record = MedicalCertificate::firstOrFail();
+        $this->get(route('certificates.print', [$this->patient, $this->visit, $record]))->assertOk()
+            ->assertSee('onclick="window.print()"', false)->assertSee(route('certificates.pdf', [$this->patient, $this->visit, $record]));
+        $response = $this->get(route('certificates.pdf', [$this->patient, $this->visit, $record]))->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+        $this->assertStringContainsString('attachment; filename=medical-certificate-'.$record->id.'.pdf', $response->headers->get('content-disposition'));
+        $this->assertStringStartsWith('%PDF', $response->getContent());
+        $this->assertStringContainsString('no-store', $response->headers->get('cache-control'));
+        $log = Activity::where('description', 'certificate.pdf_downloaded')->sole();
+        $this->assertSame($record->id, $log->subject_id);
+        $this->assertStringNotContainsString('1234567', $log->toJson());
+    }
+
     public function test_unauthorized_roles_and_cross_patient_or_visit_requests_are_rejected(): void
     {
         $this->post(route('certificates.store', [$this->patient, $this->visit]), $this->data())->assertRedirect();
@@ -77,6 +93,7 @@ class MedicalCertificateTest extends TestCase
             $this->actingAs($user)->get(route('certificates.index', [$this->patient, $this->visit]))->assertForbidden();
             $this->post(route('certificates.store', [$this->patient, $this->visit]), $this->data())->assertForbidden();
             $this->get(route('certificates.print', [$this->patient, $this->visit, $record]))->assertForbidden();
+            $this->get(route('certificates.pdf', [$this->patient, $this->visit, $record]))->assertForbidden();
         }
         $this->actingAs($this->doctor);
         $other = Patient::forceCreate(['created_by' => $this->doctor->id, 'duplicate_key' => (string) Str::uuid(), 'first_name' => 'Other', 'last_name' => 'Fictional']);
@@ -85,6 +102,8 @@ class MedicalCertificateTest extends TestCase
         $this->get(route('certificates.print', [$other, $this->visit, $record]))->assertNotFound();
         $visit = Visit::forceCreate(['patient_id' => $other->id, 'service_id' => $this->visit->service_id, 'created_by' => $this->doctor->id, 'visit_date' => '2026-10-24']);
         $this->get(route('certificates.print', [$other, $visit, $record]))->assertNotFound();
+        $this->get(route('certificates.pdf', [$other, $this->visit, $record]))->assertNotFound();
+        $this->get(route('certificates.pdf', [$other, $visit, $record]))->assertNotFound();
         $this->get(route('certificates.index', [$other, $visit, 'copy' => $record->id]))->assertNotFound();
         $this->assertDatabaseCount('medical_certificates', 1);
     }

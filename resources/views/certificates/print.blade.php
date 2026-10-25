@@ -11,6 +11,7 @@
         .actions { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
         button { border: 0; border-radius: 8px; padding: 12px 20px; background: #065f46; color: white; cursor: pointer; font: inherit; }
         a { color: #065f46; }
+        .download { border: 1px solid #065f46; border-radius: 8px; padding: 11px 19px; font-weight: bold; text-decoration: none; }
         .paper { background: white; width: 1123px; max-width: 100%; min-height: 794px; margin: 0 auto 32px; padding: 53px 68px; font: 17px/1.55 'Times New Roman', serif; box-shadow: 0 4px 24px #0001; }
         header { display: grid; grid-template-columns: 100px 1fr 100px; gap: 24px; align-items: center; text-align: center; }
         header img { width: 90px; height: 90px; object-fit: contain; }
@@ -33,7 +34,7 @@
 </head>
 <body>
     @unless($preview ?? false)
-    <nav class="controls"><div class="actions"><button type="button" onclick="window.print()">Print / Save as PDF</button><a href="{{ route('certificates.index', [$patient, $visit]) }}">Back to certificates</a></div><p>Copy #{{ $certificate->id }} · {{ $patient->patient_number }} · {{ $visit->visit_number }}. Prepared for manual signature and seal; printing does not record issuance. Choose a printer or Save as PDF in the print dialog. Use A4 landscape, 100% scale, and turn off browser headers/footers. Review Print Preview for longer text.</p></nav>
+    <nav class="controls"><div class="actions"><button type="button" onclick="window.print()">Print</button><a class="download" href="{{ route('certificates.pdf', [$patient, $visit, $certificate]) }}">Download PDF</a><a href="{{ route('certificates.index', [$patient, $visit]) }}">Back to certificates</a></div><p>Copy #{{ $certificate->id }} · {{ $patient->patient_number }} · {{ $visit->visit_number }}. Prepared for manual signature and seal; printing does not record issuance. <strong>Print</strong> opens your printer dialog; <strong>Download PDF</strong> saves a file. For printing, use A4 landscape, 100% scale, and turn off browser headers/footers. Review Print Preview for longer text.</p></nav>
     @endunless
     <main class="paper">
         <header><img src="{{ asset('images/calasiao-seal.png') }}" alt="Municipality of Calasiao seal"><div><p>Republic of the Philippines</p><p>Province of Pangasinan</p><p>Municipality of Calasiao</p></div><img src="{{ asset('images/certificate-mho-logo.jpg') }}" alt="Municipal Health Office Calasiao logo"></header>
