@@ -5,5 +5,5 @@
     @if($errors->any())<x-alert type="error" class="mt-4">{{ $errors->first() }}</x-alert>@endif
     <x-visit-filters :search="$search" :date="$date" :all-dates="$allDates" />
     @include('midwife-care.table')
-    <div class="mt-5">{{ $visits->links() }}</div>
+    
 </x-layout>

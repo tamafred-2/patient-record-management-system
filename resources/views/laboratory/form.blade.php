@@ -1,6 +1,6 @@
 @php
     $record = $record ?? null;
-    $selectedTest = old('test_name', $record?->test_name);
+    $selectedTest = $record?->authorizing_doctor_id ? $record->test_name : old('test_name', $record?->test_name);
     $templates = config('laboratory.components');
     $componentNames = $templates[$selectedTest] ?? [$selectedTest ?: ''];
     $blankRows = array_map(fn ($name) => ['measurement' => $name, 'value' => '', 'unit' => '', 'reference_range' => '', 'flag' => ''], $componentNames);
@@ -25,7 +25,8 @@
         <legend class="sr-only">Laboratory service details</legend>
         <div>
             <label for="test_name" class="mb-2 block text-sm font-medium">Requested test / service</label>
-            <select id="test_name" name="test_name" x-model="testName" @change="changeTest()" required class="w-full rounded-lg border border-slate-300 p-3">
+            @if($record?->authorizing_doctor_id)<input type="hidden" name="test_name" value="{{ $record->test_name }}"><p class="mb-2 text-sm text-slate-600">The doctor's requested test is fixed.</p>@endif
+            <select id="test_name" name="test_name" x-model="testName" @change="changeTest()" required @disabled($record?->authorizing_doctor_id) class="w-full rounded-lg border border-slate-300 p-3">
                 <option value="">Select test / service</option>
                 @foreach(config('laboratory.tests') as $group => $tests)
                     <optgroup label="{{ $group }}">@foreach($tests as $test)<option value="{{ $test }}" @selected($selectedTest === $test)>{{ $test }}</option>@endforeach</optgroup>

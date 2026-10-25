@@ -9,6 +9,9 @@
         <div><dt class="text-sm text-slate-500">Queue number</dt><dd>{{ $visit->queue_reference ?? 'Not recorded' }}</dd></div>
         <div><dt class="text-sm text-slate-500">Record status</dt><dd>{{ $visit->status }}</dd></div>
     </dl>
+    <x-visit-priority-panel :patient="$patient" :visit="$visit" class="mt-6" />
+    <x-visit-follow-up-panel :patient="$patient" :visit="$visit" class="mt-6" />
+    <x-visit-documents :visit="$visit" class="mt-6" />
     @can('vitals.view')
         <a class="mt-6 inline-block font-semibold text-emerald-800 underline" href="{{ route('assessments.edit', [$patient, $visit]) }}">Open vital signs</a>
     @endcan

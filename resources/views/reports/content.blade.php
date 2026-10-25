@@ -12,12 +12,11 @@
 @endif
 @if($format !== 'summary')
     <h2>Administrative visit register</h2>
-    @unless($export)<p class="muted">Preview shows 25 visits per page. The PDF includes all matching visits, up to the 2,000-visit limit.</p>@endunless
-    <table><thead><tr><th>Visit date</th><th>Visit number</th><th>Requested service</th><th>Status</th>@foreach($columnLabels as $key=>$label)@if(in_array($key,$columns))<th>{{ $label }}</th>@endif@endforeach</tr></thead><tbody>
-    @forelse($register as $visit)<tr>
-        <td>{{ $visit->visit_date->format('Y-m-d') }}</td><td>{{ $visit->visit_number }}</td><td>{{ $names[$visit->service_id] ?? 'Former service' }}</td><td>{{ $visit->status }}</td>
-        @foreach($columnLabels as $key=>$label)@if(in_array($key,$columns))<td>@if($key === 'queue_reference'){{ $visit->queue_reference ?? 'Not recorded' }}@elseif($key === 'completed_at'){{ $visit->completed_at?->timezone('Asia/Manila')->format('Y-m-d H:i:s') ?? 'Not recorded' }}@else{{ $visit->completedBy?->name ?? 'Not recorded' }}@endif</td>@endif@endforeach
-    </tr>@empty<tr><td colspan="{{ 4 + count($columns) }}">No visits match the selected filters.</td></tr>@endforelse
-    </tbody></table>
+    @unless($export)<p class="muted">Preview loads 10 visits at a time as you scroll. The PDF includes all matching visits, up to the 2,000-visit limit.</p>@endunless
+    @if($export)
+        @include('reports.register')
+    @else
+        <x-scroll-queue :paginator="$register" id="register" label="Report register, scroll to load more">@include('reports.register')</x-scroll-queue>
+    @endif
 @endif
 <p class="muted">Internal administrative report. Archived patients excluded. Not an official DOH submission. Patient identities, completion remarks and clinical text are excluded. Visit and queue references may still be linkable to records; share only with authorized recipients.</p>

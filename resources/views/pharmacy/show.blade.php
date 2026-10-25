@@ -7,6 +7,7 @@
     @endphp
     <a href="{{ route('pharmacy.index', ['date' => $visit->visit_date->toDateString()]) }}" class="text-emerald-800 underline">Back to pharmacy</a>
     <h1 class="mt-5 text-3xl font-semibold">{{ $prescription->prescription_number }}</h1>
+    <a href="{{ route('prints.prescription', [$patient, $visit]) }}" class="mt-3 inline-block rounded-lg border border-emerald-800 px-4 py-2 text-sm font-semibold text-emerald-800">Print prescription</a>
     <p class="mt-3 font-medium">{{ $patient->full_name }} &middot; {{ $patient->patient_number }}</p>
     <p class="mt-1 text-sm text-slate-600">Birth date: {{ $patient->birth_date?->format('M j, Y') ?? 'Not recorded' }} &middot; {{ $visit->visit_number }} &middot; {{ $visit->visit_date->format('M j, Y') }}</p>
     <p class="mt-1 text-sm text-slate-600">Queue reference: {{ $visit->queue_reference ?? 'Not recorded' }}</p>

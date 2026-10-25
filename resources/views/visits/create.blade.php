@@ -16,6 +16,7 @@
                 </select>
                 @error('service_id')<p role="alert" class="mt-2 text-sm text-red-700">{{ $message }}</p>@enderror
             </div>
+            <x-visit-priority-fields />
             <x-input name="visit_date" label="Visit date (required)" type="date" :value="now('Asia/Manila')->toDateString()" :max="now('Asia/Manila')->toDateString()" required />
             <input type="hidden" name="queue_token" value="{{ $reservation->token }}">
             <div><label for="generated-queue" class="mb-2 block text-sm font-semibold">Queue number (auto-generated)</label><input id="generated-queue" value="{{ $reservation->queue_reference }}" readonly aria-describedby="queue-help" class="w-full rounded-lg border border-slate-300 bg-slate-50 p-3 font-semibold text-emerald-900"></div>

@@ -11,6 +11,8 @@
         a { color: #065f46; } .stub { max-width: 680px; border: 1px dashed #87948f; padding: 24px; margin: auto; }
         header { display: flex; gap: 16px; align-items: center; border-bottom: 1px solid #ccd6d1; padding-bottom: 16px; }
         img { width: 64px; height: 64px; object-fit: contain; } h1 { font-size: 22px; margin: 0 0 6px; }
+        .priority { text-align: center; margin: 0 0 16px; padding: 8px; border: 2px solid #b45309; border-radius: 8px; font-size: 20px; font-weight: bold; text-transform: uppercase; color: #92400e; }
+        .priority.emergency { border-color: #b91c1c; color: #991b1b; }
         .queue { text-align: center; padding: 20px 0; } .queue strong { display: block; font-size: 36px; overflow-wrap: anywhere; margin-top: 8px; }
         dl { margin: 0; } dt { color: #50645b; font-size: 13px; margin-top: 14px; } dd { margin: 4px 0 0; overflow-wrap: anywhere; }
         @media print { .controls { display: none; } body { margin: 0; } .stub { break-inside: avoid; } }
@@ -21,6 +23,9 @@
     <main class="stub">
         <header><img src="{{ asset('images/rhu-logo.jpg') }}" alt="RHU logo"><div><h1>RHU Calasiao</h1><span>Patient visit stub</span></div></header>
         <div class="queue">Queue number<strong>{{ $visit->queue_reference ?? 'Not recorded' }}</strong></div>
+        @if($visit->priority !== 'REGULAR')
+            <p class="priority {{ $visit->priority === 'EMERGENCY' ? 'emergency' : '' }}">{{ $visit->priorityLabel() }}</p>
+        @endif
         <dl>
             <dt>Patient</dt><dd>{{ $patient->full_name }}</dd>
             <dt>Patient number</dt><dd>{{ $patient->patient_number }}</dd>

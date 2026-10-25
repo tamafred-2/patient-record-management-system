@@ -29,5 +29,5 @@
             @include('visits.table')
         </section>
     @endif
-    @can('history.view')<a class="mt-6 mr-4 inline-block font-semibold text-emerald-800 underline" href="{{ route('history.show',$patient) }}">Patient history timeline</a>@endcan
+    @can('history.view')<a class="mt-6 mr-4 inline-block font-semibold text-emerald-800 underline" href="{{ route('history.show',$patient) }}">Patient history timeline</a><a class="mt-6 mr-4 inline-block rounded-lg border border-emerald-800 px-4 py-2 font-semibold text-emerald-800" href="{{ route('print-center.patient',$patient) }}">Documents &amp; printouts</a>@endcan
 </x-layout>
