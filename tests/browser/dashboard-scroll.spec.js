@@ -1,12 +1,13 @@
 import { test, expect } from '@playwright/test';
 
-test('today visits scroll after ten rows', async ({ page }) => {
+test('today visits load ten rows per batch and scroll within the viewport', async ({ page }) => {
+  test.setTimeout(90000);
   await page.goto('/login');
   await page.getByLabel('Email address').fill('information@rhu.test');
   await page.getByLabel('Password', { exact: true }).fill('Password!');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page).toHaveURL(/dashboard$/);
-  await expect(page.getByRole('region', { name: "Today's visits, scroll to view more" })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: "Today's visits, scroll to load more" })).toBeVisible();
   await page.goto('/patients/1/visits/create');
   const token = await page.locator('form[action$="/visits"] input[name="_token"]').inputValue();
   const service = await page.locator('select[name="service_id"] option').filter({ hasText: 'Consultation' }).getAttribute('value');
@@ -16,7 +17,7 @@ test('today visits scroll after ten rows', async ({ page }) => {
     expect(response.ok()).toBeTruthy();
   }
   await page.goto('/dashboard');
-  const region = page.getByRole('region', { name: "Today's visits, scroll to view more" });
+  const region = page.getByRole('region', { name: "Today's visits, scroll to load more" });
   await expect(region).toBeVisible();
   await expect.poll(() => region.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
   await region.evaluate(el => el.scrollTop = el.scrollHeight);

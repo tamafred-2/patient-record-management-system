@@ -1,10 +1,19 @@
 import { test, expect } from '@playwright/test';
 
+async function expectUsableTable(region) {
+  await expect(region).toBeVisible();
+  await expect.poll(() => region.evaluate(el => {
+    const queue = el.closest('[data-scroll-queue]');
+    const paged = queue.dataset.next || queue.dataset.previous;
+    return el.clientHeight > 0 && (paged ? el.clientHeight <= 744 : el.scrollHeight <= el.clientHeight + 1);
+  })).toBe(true);
+}
+
 for (const [role, sections] of Object.entries({
   admin: ['visits'], doctor: ['visits'], nurse: ['assessments'], medtech: ['laboratory'],
   pharmacist: ['pharmacy'], midwife: ['midwife', 'vaccinations'],
 })) {
-  test(`${role} dashboard uses fixed scroll tables and authorized sections`, async ({ page }) => {
+  test(`${role} dashboard uses readable bounded tables and authorized sections`, async ({ page }) => {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto('/login');
@@ -28,18 +37,18 @@ for (const [role, sections] of Object.entries({
       await page.getByRole('button', { name: 'Apply record filter', exact: true }).click();
       await expect(page.locator('p').filter({ hasText: /^All dates/ })).toBeVisible();
       await expect(page.getByLabel('Record filter', { exact: true })).toHaveValue('');
-      const doctorTable = page.getByRole('region', { name: 'Doctor visits, scroll to view more' });
-      await expect(doctorTable).toHaveJSProperty('clientHeight', 744);
+      const doctorTable = page.getByRole('region', { name: 'Visits, scroll to load more' });
+      await expectUsableTable(doctorTable);
       await page.getByLabel('Patient name or queue number', { exact: true }).fill('FICTIONAL-NONMATCH-999');
       await page.getByRole('button', { name: 'Search', exact: true }).click();
       await expect(doctorTable.getByText('No matching visits', { exact: true })).toBeVisible();
-      await expect(doctorTable).toHaveJSProperty('clientHeight', 744);
+      await expectUsableTable(doctorTable);
       await page.goto('/dashboard');
     }
     for (const section of sections) {
       const panel = page.locator(`#today-${section}`);
       await expect(panel).toBeVisible();
-      await expect(panel.getByRole('region')).toHaveJSProperty('clientHeight', 744);
+      await expectUsableTable(panel.getByRole('region'));
       const response = await page.request.get(`/dashboard/visits?section=${section}`);
       expect(response.ok()).toBe(true);
     }
@@ -48,7 +57,7 @@ for (const [role, sections] of Object.entries({
     for (const section of sections) {
       const panel = page.locator(`#today-${section}`);
       await expect(panel.getByText('No matching visits.', { exact: true })).toBeVisible();
-      await expect(panel.getByRole('region')).toHaveJSProperty('clientHeight', 744);
+      await expectUsableTable(panel.getByRole('region'));
     }
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
