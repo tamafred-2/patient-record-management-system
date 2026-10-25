@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Patient;
+use App\Models\Prescription;
 use App\Models\Visit;
+use App\Models\VisitReopening;
 use App\Support\DispensingQuantities;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +20,9 @@ class VisitCompletionController extends Controller
         Gate::authorize('complete', $visit);
         $review = $this->review($visit);
 
-        return view('visits.complete', compact('patient', 'visit', 'review'));
+        $reopenings = VisitReopening::where('visit_id', $visit->id)->with('reopenedBy')->latest('id')->get();
+
+        return view('visits.complete', compact('patient', 'visit', 'review', 'reopenings'));
     }
 
     public function store(Request $request, Patient $patient, string $visit)
@@ -35,7 +39,7 @@ class VisitCompletionController extends Controller
         DB::transaction(function () use ($request, $patient, $visit, $data) {
             $visit = $patient->visits()->whereKey($visit->id)->lockForUpdate()->firstOrFail();
             Gate::authorize('complete', $visit);
-            if ($visit->status !== 'OPEN') {
+            if (! $visit->isOpen()) {
                 throw ValidationException::withMessages(['visit' => 'This visit is already closed.']);
             }
             $review = $this->review($visit);
@@ -48,7 +52,7 @@ class VisitCompletionController extends Controller
             if ($review['unreleased'] && trim($data['completion_remarks'] ?? '') === '') {
                 throw ValidationException::withMessages(['completion_remarks' => 'Explain why the visit is ending with unreleased medicines, after checking with Pharmacy.']);
             }
-            $visit->status = 'COMPLETED';
+            $visit->status = Visit::COMPLETED;
             $visit->completed_at = now();
             $visit->completed_by = $request->user()->id;
             $visit->completion_remarks = $data['completion_remarks'] ?? null;
@@ -61,17 +65,47 @@ class VisitCompletionController extends Controller
         return redirect()->route('visits.completion', [$patient, $visit])->with('status', 'Visit completed.');
     }
 
+    public function reopen(Request $request, Patient $patient, string $visit)
+    {
+        $visit = $patient->visits()->findOrFail($visit);
+        Gate::authorize('complete', $visit);
+        $data = $request->validate([
+            'confirm' => ['accepted'],
+            'reason' => ['required', 'string', 'max:1000'],
+            'review_version' => ['required', 'string', 'size:64'],
+        ]);
+        DB::transaction(function () use ($request, $patient, $visit, $data) {
+            $visit = $patient->visits()->whereKey($visit->id)->lockForUpdate()->firstOrFail();
+            Gate::authorize('complete', $visit);
+            if ($visit->status !== Visit::COMPLETED || ! hash_equals($this->review($visit)['version'], $data['review_version'])) {
+                throw ValidationException::withMessages(['visit' => 'Visit changed. Reload before reopening.']);
+            }
+            $entry = new VisitReopening;
+            $entry->forceFill([
+                'visit_id' => $visit->id, 'reopened_by' => $request->user()->id,
+                'reason' => $data['reason'], 'previous_completed_at' => $visit->completed_at,
+                'previous_completed_by' => $visit->completed_by, 'previous_completion_remarks' => $visit->completion_remarks,
+            ])->save();
+            $visit->forceFill(['status' => Visit::OPEN, 'completed_at' => null, 'completed_by' => null, 'completion_remarks' => null])->save();
+            activity('visits')->causedBy($request->user())->performedOn($visit)
+                ->withProperties(['visit_id' => $visit->id, 'reopening_id' => $entry->id])->log('visit.reopened');
+        });
+
+        return redirect()->route('visits.completion', [$patient, $visit])->with('status', 'Visit reopened for correction. Complete it again after corrections.');
+    }
+
     private function review(Visit $visit): array
     {
         $visit->load(['prescription.items', 'prescription.dispensings.items', 'laboratoryRecords', 'treatmentRecord', 'vitalSign', 'eligibilityCheck', 'vaccinationRecords', 'midwifeCareRecords']);
         $prescription = $visit->prescription;
-        $unreleased = $prescription?->status === 'ISSUED'
-            && collect(DispensingQuantities::forPrescription($prescription))->contains(fn ($line) => $line['remaining'] > 0);
+        $lines = $prescription?->status === Prescription::ISSUED ? collect(DispensingQuantities::forPrescription($prescription)) : collect();
+        $unreleased = $lines->contains(fn ($line) => $line['remaining'] > 0);
+        $notReleasedHere = $lines->contains(fn ($line) => $line['closed'] > 0);
         $pendingLabs = $visit->laboratoryRecords->where('availability_status', 'PENDING')->count();
         $pendingAssessments = $visit->assessmentRequests()->where('status', 'PENDING')->count();
-        $draft = $prescription?->status === 'DRAFT';
+        $draft = $prescription?->status === Prescription::DRAFT;
         $version = hash('sha256', json_encode([
-            $visit->id, $visit->status, $prescription?->id, $prescription?->lock_version,
+            $visit->id, $visit->status, $visit->completed_at, VisitReopening::where('visit_id', $visit->id)->count(), $prescription?->id, $prescription?->lock_version,
             $visit->laboratoryRecords->sortBy('id')->map->only(['id', 'availability_status', 'lock_version'])->values()->all(),
             $visit->treatmentRecord?->lock_version, $visit->vitalSign?->lock_version, $visit->eligibilityCheck?->lock_version,
             $visit->dispositionRecords()->count(),
@@ -82,6 +116,6 @@ class VisitCompletionController extends Controller
 
         return ['midwifeCareCount' => $visit->midwifeCareRecords->count(), 'vaccinationCount' => $visit->vaccinationRecords->count(), 'version' => $version, 'draft' => $draft, 'unreleased' => $unreleased,
             'pendingLabs' => $pendingLabs, 'pendingAssessments' => $pendingAssessments, 'blocked' => $draft || $pendingLabs > 0 || $pendingAssessments > 0,
-            'pharmacy' => ! $prescription ? 'No prescription recorded' : ($draft ? 'Draft: not yet sent to Pharmacy' : ($unreleased ? 'Issued: medicines remain unreleased' : 'Issued: all prescribed quantities released'))];
+            'pharmacy' => ! $prescription ? 'No prescription recorded' : ($draft ? 'Draft: not yet sent to Pharmacy' : ($unreleased ? 'Issued: medicines remain unreleased' : ($notReleasedHere ? 'Issued: pharmacy complete; some medicines to buy outside or declined' : 'Issued: all prescribed quantities released')))];
     }
 }

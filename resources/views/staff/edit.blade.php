@@ -1,5 +1,5 @@
 <x-layout title="Manage user access">
-    <a href="{{ route('staff.index') }}" class="text-sm text-emerald-800 underline">← User Accounts</a>
+    <x-back-link href="{{ route('staff.index') }}">Back to user accounts</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">Manage user access</h1>
     <p class="mt-2 text-slate-600">{{ $staff->name }} · {{ $staff->email }}</p>
     <form method="POST" action="{{ route('staff.update', $staff) }}" class="mt-8 max-w-2xl space-y-6 rounded-xl border border-slate-200 bg-white p-6" x-data @submit="if (!confirm('Apply these role and account status changes? Deactivated accounts will lose access.')) $event.preventDefault()">
@@ -18,6 +18,16 @@
         <x-button>Save access changes</x-button>
     </form>
     @if(!auth()->user()->is($staff))
+        <section class="mt-8 max-w-2xl rounded-xl border border-slate-200 bg-white p-6">
+            <h2 class="text-xl font-semibold">Retire account</h2>
+            <p class="mt-2 text-sm text-slate-600">Deactivation removes all roles and direct permissions and ends sessions. Linked clinical records and attribution remain intact. Deletion is available only when no records or activity are attributed to this account.</p>
+            <form method="POST" action="{{ route('staff.retire', $staff) }}" class="mt-4 space-y-4">
+                @csrf
+                <label class="block">Action<select name="action" class="mt-2 w-full rounded-lg border border-slate-300 p-3"><option value="deactivate">Deactivate and remove all access</option><option value="delete">Delete unlinked account permanently</option></select></label>
+                <label class="flex items-start gap-3 text-sm"><input type="checkbox" name="confirm" value="1" required class="mt-1">I confirm this account should be retired. Deleting an unlinked account is permanent.</label>
+                <x-button>Retire account</x-button>
+            </form>
+        </section>
         @if($generatedPassword ?? null)
             <div x-data="{ show: false, message: '', clearPassword() { this.$refs.generated.value = ''; this.$refs.generated.removeAttribute('value'); this.show = false; this.message = ''; } }" x-init="$nextTick(() => $refs.resetPasswordDialog.showModal())" @close.capture="clearPassword(); document.getElementById('generate-reset-password').focus()" @pagehide.window="clearPassword()">
                 <x-dialog reference="resetPasswordDialog" labelledby="generated-password-title">
@@ -27,11 +37,11 @@
                 <label for="generated-password" class="mt-4 block font-medium">Temporary password</label>
                 <input id="generated-password" x-ref="generated" type="password" :type="show ? 'text' : 'password'" value="{{ $generatedPassword }}" readonly autocomplete="off" class="mt-2 w-full rounded-lg border border-slate-300 p-3 font-mono">
                 <div class="mt-3 flex flex-wrap gap-3">
-                    <button type="button" @click="show = !show" :aria-pressed="show" class="rounded-lg border border-emerald-800 px-4 py-2" x-text="show ? 'Hide password' : 'Show password'">Show password</button>
+                    <x-button variant="secondary" type="button" x-on:click="show = !show" x-bind:aria-pressed="show" x-text="show ? 'Hide password' : 'Show password'">Show password</x-button>
                     <button type="button" @click="navigator.clipboard ? navigator.clipboard.writeText($refs.generated.value).then(() => message = 'Copied.').catch(() => message = 'Use Show password, select the text and copy it.') : message = 'Use Show password, select the text and copy it.'" class="rounded-lg bg-emerald-800 px-4 py-2 text-white">Copy password</button>
                 </div>
                 <p x-text="message" aria-live="polite" class="mt-2 text-sm"></p>
-                <div class="mt-6 flex justify-end border-t border-slate-100 pt-4"><button type="button" @click="$refs.resetPasswordDialog.close()" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold">Close</button></div>
+                <div class="mt-6 flex justify-end border-t border-slate-100 pt-4"><x-button variant="neutral" type="button" x-on:click="$refs.resetPasswordDialog.close()">Close</x-button></div>
                 </div>
                 </x-dialog>
             </div>

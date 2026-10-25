@@ -12,7 +12,7 @@ class Dispensing extends Model
 
     protected function casts(): array
     {
-        return ['dispensed_at' => 'datetime'];
+        return ['dispensed_at' => 'datetime', 'voided_at' => 'datetime'];
     }
 
     public function items(): HasMany
@@ -23,5 +23,10 @@ class Dispensing extends Model
     public function pharmacist(): BelongsTo
     {
         return $this->belongsTo(User::class, 'pharmacist_id');
+    }
+
+    public function voidedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'voided_by');
     }
 }

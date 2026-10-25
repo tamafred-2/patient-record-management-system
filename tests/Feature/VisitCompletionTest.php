@@ -84,7 +84,7 @@ class VisitCompletionTest extends TestCase
         $audit = Activity::where('description', 'visit.completed')->firstOrFail();
         $this->assertArrayNotHasKey('completion_remarks', $audit->properties->all());
         $this->role('pharmacist');
-        $this->get(route('pharmacy.show', [$visit->patient, $visit]))->assertOk()->assertDontSee('Record release');
+        $this->get(route('pharmacy.show', [$visit->patient, $visit]))->assertOk()->assertDontSee('Record pharmacy entry');
         $item = $rx->items()->firstOrFail();
         $this->post(route('pharmacy.store', [$visit->patient, $visit]), ['confirm' => 1, 'lock_version' => $rx->lock_version, 'quantities' => [$item->id => 1]])->assertSessionHasErrors('visit');
     }
