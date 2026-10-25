@@ -38,7 +38,7 @@ class DispositionController extends Controller
         ]);
         DB::transaction(function () use ($request, $patient, $visit, $data) {
             $visit = $patient->visits()->whereKey($visit->id)->lockForUpdate()->firstOrFail();
-            if ($visit->status !== 'OPEN') {
+            if (! $visit->isOpen()) {
                 throw ValidationException::withMessages(['visit' => 'Only open visits can receive new records.']);
             }
             if (DispositionRecord::where('submission_token', $data['submission_token'])->exists()) {

@@ -2,7 +2,7 @@
     <div class="flex flex-wrap items-center justify-between gap-4">
         <h1 class="text-3xl font-semibold">Notifications</h1>
         @if($notifications->contains(fn ($item) => ! $item['model']->read_at))
-            <form method="POST" action="{{ route('notifications.read-all') }}">@csrf<button class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold">Mark all as read</button></form>
+            <form method="POST" action="{{ route('notifications.read-all') }}">@csrf<x-button variant="neutral">Mark all as read</x-button></form>
         @endif
     </div>
     <p class="mt-3 text-slate-600">New items appear automatically while a page is open. The latest 50 are shown.</p>

@@ -4,7 +4,7 @@
         $canEdit = $visit->status === 'OPEN' && auth()->user()->can('eligibility.verify');
 
     @endphp
-    <a href="{{ route('eligibility.index', ['date' => $visit->visit_date->toDateString()]) }}" class="text-emerald-800 underline">Back to PhilHealth confirmation</a>
+    <x-back-link href="{{ route('eligibility.index', ['date' => $visit->visit_date->toDateString()]) }}">Back to PhilHealth confirmation</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">PhilHealth confirmation</h1>
     <section class="my-6 rounded-xl border border-slate-200 bg-white p-5">
         <h2 class="text-lg font-semibold">{{ $patient->full_name }}</h2>

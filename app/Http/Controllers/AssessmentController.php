@@ -7,6 +7,7 @@ use App\Models\Patient;
 use App\Models\Visit;
 use App\Models\VitalSign;
 use App\Support\FollowupAccess;
+use App\Support\ListFilters;
 use App\Support\VitalsAccess;
 use App\Support\WorkflowAlerts;
 use Illuminate\Http\Request;
@@ -19,7 +20,7 @@ class AssessmentController extends Controller
     public function index(Request $request)
     {
         Gate::authorize('vitals.view');
-        $data = $request->validate(['authorized' => ['sometimes', 'boolean'], 'reassessment' => ['sometimes', 'boolean'], 'all' => ['sometimes', 'boolean'], 'date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()], 'search' => ['nullable', 'string', 'max:100']]);
+        $data = $request->validate(['authorized' => ['sometimes', 'boolean'], 'reassessment' => ['sometimes', 'boolean'], 'all' => ['sometimes', 'boolean'], 'date' => ListFilters::pastDate(), 'search' => ListFilters::search()]);
         $authorizedOnly = (bool) ($data['authorized'] ?? false);
         $reassessmentOnly = (bool) ($data['reassessment'] ?? false);
         $allDates = $authorizedOnly || $reassessmentOnly || (bool) ($data['all'] ?? false);
@@ -30,7 +31,7 @@ class AssessmentController extends Controller
         $visits = Visit::with(['patient', 'service', 'vitalSign', 'pendingAssessmentRequest'])->whereHas('patient')
             ->withCount(['followupAuthorizations as authorized_followups_count' => fn ($query) => $query->availableTo($nurse)])
             ->when($authorizedOnly, fn ($query) => $query->orderableBy($nurse, $standing))
-            ->when($reassessmentOnly, fn ($query) => $query->where('status', 'OPEN')->has('pendingAssessmentRequest'))
+            ->when($reassessmentOnly, fn ($query) => $query->where('status', Visit::OPEN)->has('pendingAssessmentRequest'))
             ->when(! $allDates, fn ($query) => $query->whereDate('visit_date', $date))->searchPatientOrQueue($search)->priorityFirst()->scrollPaginate()->withQueryString();
 
         return view('assessments.index', compact('allDates', 'search', 'visits', 'date', 'reassessmentOnly', 'authorizedOnly', 'standing'));
@@ -74,7 +75,7 @@ class AssessmentController extends Controller
         }
         DB::transaction(function () use ($request, $visit, $patient, $data, $measurements) {
             $lockedVisit = $patient->visits()->whereKey($visit->id)->lockForUpdate()->firstOrFail();
-            if ($lockedVisit->status !== 'OPEN') {
+            if (! $lockedVisit->isOpen()) {
                 throw ValidationException::withMessages(['visit' => 'Only open visits can have vital signs changed.']);
             }
             $record = $lockedVisit->vitalSign;

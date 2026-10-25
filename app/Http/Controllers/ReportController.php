@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Service;
 use App\Models\Visit;
 use App\Services\ExportSafety;
+use App\Support\ListFilters;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -50,7 +51,7 @@ class ReportController extends Controller
     private function data(Request $request, bool $export = false): array
     {
         $validated = $request->validate([
-            'from' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()], 'to' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()],
+            'from' => ListFilters::pastDate(), 'to' => ListFilters::pastDate(),
             'period' => ['nullable', Rule::in(['custom', 'today', 'week', 'month'])],
             'service_ids' => ['nullable', 'array', 'max:100'], 'service_ids.*' => ['integer', 'distinct', Rule::exists('services', 'id')],
             'status' => ['nullable', Rule::in(['all', 'OPEN', 'COMPLETED'])],
@@ -93,8 +94,8 @@ class ReportController extends Controller
         $batchOnly = ! $export && $request->header('X-Scroll-Queue') === 'register';
         $total = $batchOnly ? 0 : (clone $query)->count();
         $patients = $batchOnly ? 0 : (clone $query)->distinct()->count('patient_id');
-        $open = $batchOnly ? 0 : (clone $query)->where('status', 'OPEN')->count();
-        $completed = $batchOnly ? 0 : (clone $query)->where('status', 'COMPLETED')->count();
+        $open = $batchOnly ? 0 : (clone $query)->where('status', Visit::OPEN)->count();
+        $completed = $batchOnly ? 0 : (clone $query)->where('status', Visit::COMPLETED)->count();
         $field = $group === 'service' ? 'service_id' : 'visit_date';
         $groups = $batchOnly ? collect() : (clone $query)->select($field)->selectRaw("COUNT(*) as total, SUM(CASE WHEN status = 'OPEN' THEN 1 ELSE 0 END) as open_count, SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed_count")->groupBy($field)->get();
         $rows = $groups->groupBy(function ($row) use ($group) {

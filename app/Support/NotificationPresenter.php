@@ -104,7 +104,7 @@ class NotificationPresenter
         };
         $details = $kind === 'followup_due' && $visit->follow_up_reason ? $where.' · '.$visit->follow_up_reason : $where;
 
-        return self::result($headline, $details, $visit->status === 'OPEN' ? null : 'Visit '.strtolower($visit->status), route($route, [$visit->patient, $visit]), $urgent);
+        return self::result($headline, $details, $visit->isOpen() ? null : 'Visit '.strtolower($visit->status), route($route, [$visit->patient, $visit]), $urgent);
     }
 
     private static function standing(array $data, User $viewer): array
@@ -135,7 +135,7 @@ class NotificationPresenter
         return self::result(
             $grant->doctor->name.' (doctor) authorized you to order laboratory tests for '.$grant->visit->patient->full_name,
             $grant->visit->visit_number.' · Queue '.($grant->visit->queue_reference ?? 'not recorded').' · Permitted: '.$grant->allowedTestsLabel(),
-            $grant->revoked_at ? 'Turned off by the doctor' : ($grant->used_at ? 'Order sent' : ($grant->visit->status === 'OPEN' ? 'Ready to order' : 'Visit closed')),
+            $grant->revoked_at ? 'Turned off by the doctor' : ($grant->used_at ? 'Order sent' : ($grant->visit->isOpen() ? 'Ready to order' : 'Visit closed')),
             route('followups.show', [$grant->visit->patient, $grant->visit]),
         );
     }

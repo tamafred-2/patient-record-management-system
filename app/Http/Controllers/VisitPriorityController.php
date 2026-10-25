@@ -26,7 +26,7 @@ class VisitPriorityController extends Controller
 
         $changed = DB::transaction(function () use ($request, $patient, $visit, $data) {
             $locked = $patient->visits()->whereKey($visit->id)->lockForUpdate()->firstOrFail();
-            if ($locked->status !== 'OPEN') {
+            if (! $locked->isOpen()) {
                 throw ValidationException::withMessages(['priority' => 'Only open visits can have their priority changed.']);
             }
             $from = ['priority' => $locked->priority, 'priority_reason' => $locked->priority_reason];

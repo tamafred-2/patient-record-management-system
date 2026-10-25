@@ -4,7 +4,7 @@
         $setupOpen = $errors->hasAny(['test_scope', 'allowed_tests', 'allowed_tests.*', 'instructions']) || (! $current && $eligible);
         $scope = $errors->any() ? old('test_scope', 'SELECTED') : ($current?->allow_any_test ? 'ANY' : 'SELECTED');
     @endphp
-    <a href="{{ route('nurse-authorizations.index') }}" class="text-emerald-800 underline">Back to nurse authorization</a>
+    <x-back-link href="{{ route('nurse-authorizations.index') }}">Back to nurse authorization</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">{{ $nurse->name }}</h1>
     <p class="mt-1 text-slate-600">Laboratory ordering access for follow-up after assessment</p>
     @if($errors->any())<x-alert type="error" class="mt-5">{{ $errors->first() }}</x-alert>@endif
@@ -62,7 +62,7 @@
                     <p class="mt-1"><strong>Permitted tests:</strong> {{ $grant->allowedTestsLabel() }} &middot; by {{ $grant->doctor->name }}, {{ $grant->created_at->timezone('Asia/Manila')->format('M j, Y g:i A') }}</p>
                     @if($grant->instructions)<p class="mt-1 whitespace-pre-wrap break-words text-slate-700">{{ $grant->instructions }}</p>@endif
                 </div>
-                <form method="POST" action="{{ route('nurse-authorizations.withdraw-visit-grant', [$nurse, $grant]) }}">@csrf<button class="rounded-lg border border-red-300 px-4 py-2 text-sm font-semibold text-red-800">Withdraw</button></form>
+                <form method="POST" action="{{ route('nurse-authorizations.withdraw-visit-grant', [$nurse, $grant]) }}">@csrf<x-button variant="danger">Withdraw</x-button></form>
             </article>
         @empty
             <p class="mt-3 text-sm text-slate-600">None.</p>

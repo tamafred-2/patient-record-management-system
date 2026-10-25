@@ -1,9 +1,9 @@
 <x-layout title="Start visit">
-    <a href="{{ route('patients.show', $patient) }}" class="text-emerald-800 underline">Back to patient</a>
+    <x-back-link href="{{ route('patients.show', $patient) }}">Back to patient</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">Start visit</h1>
     <p class="mt-3 font-semibold">{{ $patient->full_name }} · {{ $patient->patient_number }}</p>
     <p class="mt-2 text-slate-600">Confirm the patient identity before recording this encounter.</p>
-    @if($errors->any())<div role="alert" class="mt-4 rounded-lg bg-red-50 p-4 text-red-800">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
+    @if($errors->any())<x-alert type="error" class="mt-4">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</x-alert>@endif
     @if($services->isEmpty())
         <p class="mt-6 rounded-lg bg-amber-50 p-4">No active services are available. Ask your administrator to configure services.</p>
     @else

@@ -11,7 +11,7 @@
 </head>
 <body class="bg-stone-50 p-6 text-slate-900">
     <main class="mx-auto max-w-4xl">
-        <nav class="no-print mb-6 flex items-center gap-4"><button type="button" onclick="window.print()" class="rounded-lg bg-emerald-800 px-5 py-2.5 font-semibold text-white">Print report</button><a href="{{ route('midwife-report.index', ['month' => $month]) }}" class="text-emerald-800 underline">Back</a></nav>
+        <nav class="no-print mb-6 flex items-center gap-4"><x-button type="button" onclick="window.print()">Print report</x-button><a href="{{ route('midwife-report.index', ['month' => $month]) }}" class="text-emerald-800 underline">Back</a></nav>
         <header class="flex items-center gap-4 border-b border-slate-300 pb-4">
             <img src="{{ asset('images/rhu-logo.jpg') }}" alt="RHU logo" class="h-14 w-14 object-contain">
             <div><h1 class="text-xl font-bold">RHU Calasiao · Midwife monthly report</h1><p class="text-slate-600">{{ $start->format('F Y') }} · counts only</p></div>

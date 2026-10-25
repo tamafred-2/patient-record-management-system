@@ -7,6 +7,7 @@ use App\Models\NurseAuthorization;
 use App\Models\User;
 use App\Notifications\NurseOrderingChanged;
 use App\Support\FollowupAccess;
+use App\Support\ListFilters;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -17,7 +18,7 @@ class NurseAuthorizationController extends Controller
     public function index(Request $request)
     {
         abort_unless(FollowupAccess::doctor($request->user()), 403);
-        $filters = $request->validate(['search' => ['nullable', 'string', 'max:100'], 'ordering' => ['nullable', 'in:on,off,unusable'], 'grants' => ['nullable', 'in:with,without']]);
+        $filters = $request->validate(['search' => ListFilters::search(), 'ordering' => ['nullable', 'in:on,off,unusable'], 'grants' => ['nullable', 'in:with,without']]);
         $active = NurseAuthorization::active()->with(['doctor'])->get()->keyBy('nurse_id');
         // Eligible nurses, plus anyone still holding an active authorization so a doctor can always see and turn it off.
         $nurses = User::whereIn('id', $active->keys())->orWhere(fn ($query) => $query->role('Nurse')->where('is_active', true))->orderBy('name')->get()

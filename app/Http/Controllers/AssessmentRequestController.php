@@ -24,7 +24,7 @@ class AssessmentRequestController extends Controller
         ]);
         DB::transaction(function () use ($request, $patient, $visit, $data) {
             $visit = $patient->visits()->whereKey($visit->id)->lockForUpdate()->firstOrFail();
-            if ($visit->status !== 'OPEN' || ! $visit->vitalSign) {
+            if (! $visit->isOpen() || ! $visit->vitalSign) {
                 throw ValidationException::withMessages(['reassessment' => 'Reassessment requires an open visit with recorded vital signs.']);
             }
             if ($visit->pendingAssessmentRequest) {
@@ -57,7 +57,7 @@ class AssessmentRequestController extends Controller
         DB::transaction(function () use ($request, $patient, $visit, $assessmentRequest, $data) {
             $visit = $patient->visits()->whereKey($visit->id)->lockForUpdate()->firstOrFail();
             $entry = $visit->assessmentRequests()->findOrFail($assessmentRequest);
-            if ($visit->status !== 'OPEN' || $entry->status !== 'PENDING') {
+            if (! $visit->isOpen() || $entry->status !== 'PENDING') {
                 throw ValidationException::withMessages(['reassessment' => 'Only pending requests on open visits can be withdrawn.']);
             }
             $entry->status = 'CANCELLED';

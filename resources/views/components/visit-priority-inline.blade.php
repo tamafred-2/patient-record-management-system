@@ -14,7 +14,7 @@
                 <h2 id="priority-dialog-title" class="text-xl font-semibold">Change visit priority</h2>
                 <x-visit-priority-fields :visit="$visit" id-prefix="dialog_priority" />
                 <div class="flex justify-end gap-3 border-t border-slate-100 pt-4">
-                    <button type="button" @click="$refs.priorityDialog.close()" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold">Cancel</button>
+                    <x-button variant="neutral" type="button" x-on:click="$refs.priorityDialog.close()">Cancel</x-button>
                     <x-button>Save priority</x-button>
                 </div>
             </form>
