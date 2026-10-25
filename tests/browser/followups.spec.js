@@ -56,7 +56,7 @@ test('doctor authorizes a nurse from the nurse list and medtech receives the att
     await expect(nurse.getByText(/Pending reassessment requests:/)).toHaveCount(0);
     await nurse.getByRole('row').filter({ hasText: 'DEMO-VISIT-1' }).getByRole('link', { name: 'Order follow-up tests' }).click();
     await expect(nurse).toHaveURL(url);
-    await expect(nurse.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible();
+    await expect(nurse.getByRole('button', { name: /^Notifications/ })).toBeVisible();
     await expect(nurse.getByText('Fictional doctor instructions for nurse follow-up.')).toBeVisible();
     const choices = nurse.getByRole('group', { name: 'Tests to order' });
     await expect(choices.getByRole('checkbox')).toHaveCount(2);

@@ -13,7 +13,7 @@ test('registration dashboard searches, optional guardian and repeatable printabl
   await expect(page.getByText('Consultation today', { exact: true })).toBeVisible();
   await page.goto('/patients');
   await page.getByLabel('Patient number or name', { exact: true }).fill('Fictional Dashboard Browser');
-  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await page.getByRole('button', { name: 'Apply filters', exact: true }).click();
   await page.getByRole('link', { name: 'Register patient', exact: true }).click();
   await page.getByLabel('First name', { exact: true }).fill('Fictional Dashboard');
   await page.getByLabel('Last name', { exact: true }).fill('Browser');

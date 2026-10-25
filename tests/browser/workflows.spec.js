@@ -32,7 +32,7 @@ test('desktop sidebar, service modal, alerts and logout', async ({ page }) => {
   const manageService = page.getByRole('button', { name: /^Manage service:/ }).first();
   await manageService.hover();
   await expect(manageService).toHaveCSS('cursor', 'pointer');
-  await page.getByRole('button', { name: '+ Add service', exact: true }).click();
+  await page.getByRole('button', { name: 'Add service', exact: true }).first().click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await dialog.getByLabel('Service name (required)').fill('Browser fictional service');
@@ -72,10 +72,12 @@ test('doctor ITR and dynamic prescription rows', async ({ page }) => {
   await page.getByRole('button', { name: 'Edit notes', exact: true }).click();
   await page.getByLabel('Assessment', { exact: true }).fill('Fictional browser assessment');
   await page.getByRole('button', { name: 'Done', exact: true }).click();
-  await page.getByLabel('Diagnoses for analytics (optional)', { exact: true }).fill('Fictional browser condition');
+  await page.getByRole('button', { name: 'Edit diagnoses', exact: true }).click();
+  await page.getByLabel('Diagnosis list (optional)', { exact: true }).fill('Fictional browser condition');
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
   await page.getByRole('button', { name: 'Save ITR', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('ITR saved');
-  await expect(page.getByLabel('Diagnoses for analytics (optional)', { exact: true })).toHaveValue('Fictional browser condition');
+  await expect(page.getByLabel('Diagnosis list (optional)', { exact: true })).toHaveValue('Fictional browser condition');
   await page.goto('/prescriptions/2/visits/2');
   await page.getByLabel('Medicine name', { exact: true }).fill('Fictional browser medicine');
   await page.getByLabel('Dosage', { exact: true }).fill('Demonstration only');
@@ -106,7 +108,7 @@ test('pharmacist release and admin PDF download', async ({ page, browser }) => {
   const downloadPromise=admin.waitForEvent('download');
   await admin.getByRole('link',{name:'Download report PDF'}).click();
   const download=await downloadPromise;
-  expect(download.suggestedFilename()).toBe('rhu-service-report.pdf');
+  expect(download.suggestedFilename()).toMatch(/^rhu-service-report-\d{4}-\d{2}-\d{2}-to-\d{4}-\d{2}-\d{2}\.pdf$/);
   expect(await download.failure()).toBeNull();
   await admin.screenshot({path:'storage/framework/testing/admin-report.png',fullPage:true});
   await context.close();
