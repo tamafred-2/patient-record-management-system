@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\PatientRequest;
 use App\Models\Patient;
 use App\Models\Visit;
+use App\Support\RegistrationAlerts;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -62,6 +63,7 @@ class PatientController extends Controller
             $patient->save();
             activity('patients')->causedBy($request->user())->performedOn($patient)
                 ->withProperties(['fields' => array_keys($data), 'duplicate_review_confirmed' => $matches->isNotEmpty()])->log('patient.created');
+            RegistrationAlerts::send($patient, $request->user());
 
             return $patient;
         });
@@ -69,12 +71,13 @@ class PatientController extends Controller
         return redirect()->route('patients.show', $patient)->with('status', 'Patient registered.');
     }
 
-    public function show(Patient $patient)
+    public function show(Request $request, Patient $patient)
     {
         Gate::authorize('view', $patient);
+        $filters = $request->validate(Visit::historyFilterRules());
 
         $visits = Gate::allows('viewAny', Visit::class)
-            ? $patient->visits()->with('service')->orderByDesc('visit_date')->orderByDesc('id')->scrollPaginate()
+            ? $patient->visits()->with('service')->filterHistory($filters)->orderByDesc('visit_date')->orderByDesc('id')->scrollPaginate()
             : null;
 
         return view('patients.show', compact('patient', 'visits'));
