@@ -5,6 +5,8 @@ use App\Http\Middleware\EnsureActiveAccount;
 use App\Http\Middleware\EnsurePasswordCurrent;
 use App\Http\Middleware\RecordUserActivity;
 use App\Http\Middleware\ScrollQueueResponse;
+use App\Support\DatabaseBusy;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -22,6 +24,16 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectUsersTo('/dashboard');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(function (QueryException $exception, Request $request) {
+            if (! DatabaseBusy::matches($exception)) {
+                return null;
+            }
+            $response = $request->expectsJson()
+                ? response()->json(['message' => 'Database temporarily busy. Wait, reload the record and check its state before retrying.'], 503)
+                : response()->view('errors.database-busy', [], 503);
+
+            return $response->header('Retry-After', '5')->header('Cache-Control', 'no-store, private');
+        });
         $exceptions->dontReport([ExportUnavailable::class]);
         $exceptions->render(function (ExportUnavailable $exception, Request $request) {
             $response = $request->expectsJson()
