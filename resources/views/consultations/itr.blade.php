@@ -5,7 +5,7 @@
         $canEdit = $visit->status === 'OPEN' && auth()->user()->can($record ? 'itr.update' : 'itr.create');
         $objectiveFields = ['temperature' => 'T (Celsius)', 'pulse_rate' => 'P (bpm)', 'respiratory_rate' => 'R (cpm)', 'systolic_bp' => 'Systolic BP (mmHg)', 'diastolic_bp' => 'Diastolic BP (mmHg)', 'oxygen_saturation' => 'O2 Sat (%)', 'height_cm' => 'H (cm)', 'weight_kg' => 'W (kg)'];
     @endphp
-    <x-back-link href="{{ route('consultations.show', [$patient, $visit]) }}">Back to visit summary</x-back-link>
+    <x-back-link :href="route('consultations.show', [$patient, $visit])">Back to visit summary</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">Individual Treatment Record</h1>
     <section class="my-6 rounded-xl border border-slate-200 bg-white p-6">
         <h2 class="text-xl font-semibold">{{ $patient->full_name }}</h2>

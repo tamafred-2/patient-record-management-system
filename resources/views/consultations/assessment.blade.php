@@ -2,7 +2,7 @@
     <div class="flex flex-wrap items-start justify-between gap-3">
         <h2 id="nurse-summary-title" class="text-xl font-semibold">Nurse assessment summary</h2>
         @can('followups.authorize')
-            <x-button variant="secondary" href="{{ route('followups.show', [$patient, $visit]) }}">Order laboratory tests</x-button>
+            <x-button variant="secondary" :href="route('followups.show', [$patient, $visit])">Order laboratory tests</x-button>
         @endcan
     </div>
     <p class="mt-3 whitespace-pre-wrap break-words">{{ $visit->vitalSign?->assessment_summary ?: 'No assessment summary recorded.' }}</p>

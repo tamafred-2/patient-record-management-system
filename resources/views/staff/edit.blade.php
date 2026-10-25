@@ -1,5 +1,5 @@
 <x-layout title="Manage user access">
-    <x-back-link href="{{ route('staff.index') }}">Back to user accounts</x-back-link>
+    <x-back-link :href="route('staff.index')">Back to user accounts</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">Manage user access</h1>
     <p class="mt-2 text-slate-600">{{ $staff->name }} · {{ $staff->email }}</p>
     <form method="POST" action="{{ route('staff.update', $staff) }}" class="mt-8 max-w-2xl space-y-6 rounded-xl border border-slate-200 bg-white p-6" x-data @submit="if (!confirm('Apply these role and account status changes? Deactivated accounts will lose access.')) $event.preventDefault()">

@@ -1,5 +1,5 @@
 <x-layout :title="$patient->exists ? 'Edit patient profile' : 'Register patient'">
-    <x-back-link href="{{ $patient->exists ? route('patients.show', $patient) : route('patients.index') }}">Back to {{ $patient->exists ? 'patient profile' : 'patient search' }}</x-back-link>
+    <x-back-link :href="$patient->exists ? route('patients.show', $patient) : route('patients.index')">Back to {{ $patient->exists ? 'patient profile' : 'patient search' }}</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">{{ $patient->exists ? 'Edit patient profile' : 'Register patient' }}</h1>
     @if($patient->exists)<p class="mt-2 font-semibold text-emerald-800">{{ $patient->patient_number }} · {{ $patient->full_name }}</p>@endif
     <p class="mt-3 text-slate-600">First name, last name, date of birth, sex and address are required. Leave unknown optional details blank.</p>

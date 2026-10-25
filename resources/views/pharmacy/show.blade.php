@@ -7,9 +7,9 @@
         $field = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus:border-emerald-700 focus:outline-2 focus:outline-emerald-700';
         $byId = $prescription->items->keyBy('id');
     @endphp
-    <x-back-link href="{{ route('pharmacy.index', ['date' => $visit->visit_date->toDateString()]) }}">Back to pharmacy</x-back-link>
+    <x-back-link :href="route('pharmacy.index', ['date' => $visit->visit_date->toDateString()])">Back to pharmacy</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">{{ $prescription->prescription_number }}</h1>
-    <x-button variant="secondary" href="{{ route('prints.prescription', [$patient, $visit]) }}" class="mt-3">Print prescription</x-button>
+    <x-button variant="secondary" :href="route('prints.prescription', [$patient, $visit])" class="mt-3">Print prescription</x-button>
     <p class="mt-3 font-medium">{{ $patient->full_name }} &middot; {{ $patient->patient_number }}</p>
     <p class="mt-1 text-sm text-slate-600">Birth date: {{ $patient->birth_date?->format('M j, Y') ?? 'Not recorded' }} &middot; {{ $visit->visit_number }} &middot; {{ $visit->visit_date->format('M j, Y') }}</p>
     <p class="mt-1 text-sm text-slate-600">Queue reference: {{ $visit->queue_reference ?? 'Not recorded' }}</p>

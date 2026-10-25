@@ -17,7 +17,7 @@
                 <div class="mt-8 rounded-lg bg-emerald-50 px-5 py-4 text-sm leading-6 text-emerald-950">
                     Authorized RHU users can sign in to their workspace.
                 </div>
-                <x-button href="{{ route('login') }}" class="mt-6">User sign in</x-button>
+                <x-button :href="route('login')" class="mt-6">User sign in</x-button>
             </section>
         </main>
         @livewireScripts

@@ -1,5 +1,5 @@
 <x-layout title="Create user account">
-    <x-back-link href="{{ route('staff.index') }}">Back to user accounts</x-back-link>
+    <x-back-link :href="route('staff.index')">Back to user accounts</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">Create user account</h1>
     <p class="mt-2 text-slate-600">Choose a permanent primary role. Additional access is optional. New accounts are active.</p>
     <form method="POST" action="{{ route('staff.store') }}" class="mt-8 max-w-2xl space-y-6 rounded-xl border border-slate-200 bg-white p-6">

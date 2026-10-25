@@ -4,7 +4,7 @@
         $setupOpen = $errors->hasAny(['test_scope', 'allowed_tests', 'allowed_tests.*', 'instructions']) || (! $current && $eligible);
         $scope = $errors->any() ? old('test_scope', 'SELECTED') : ($current?->allow_any_test ? 'ANY' : 'SELECTED');
     @endphp
-    <x-back-link href="{{ route('nurse-authorizations.index') }}">Back to nurse authorization</x-back-link>
+    <x-back-link :href="route('nurse-authorizations.index')">Back to nurse authorization</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">{{ $nurse->name }}</h1>
     <p class="mt-1 text-slate-600">Laboratory ordering access for follow-up after assessment</p>
     @if($errors->any())<x-alert type="error" class="mt-5">{{ $errors->first() }}</x-alert>@endif

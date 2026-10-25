@@ -1,5 +1,5 @@
 <x-layout title="Follow-up tests">
-    <x-back-link href="{{ route($isDoctor ? 'consultations.show' : 'assessments.edit', [$patient, $visit]) }}">Back to {{ $isDoctor ? 'doctor visit' : 'assessment' }}</x-back-link>
+    <x-back-link :href="route($isDoctor ? 'consultations.show' : 'assessments.edit', [$patient, $visit])">Back to {{ $isDoctor ? 'doctor visit' : 'assessment' }}</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">Follow-up tests</h1>
     <p class="mt-3 font-medium">{{ $patient->full_name }} &middot; {{ $patient->patient_number }}</p>
     <p class="mt-1 text-sm text-slate-600">{{ $visit->visit_number }} &middot; {{ $visit->visit_date->format('M j, Y') }} &middot; {{ $visit->service->name }} &middot; Queue: {{ $visit->queue_reference ?? 'Not recorded' }}</p>
