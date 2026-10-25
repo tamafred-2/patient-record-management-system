@@ -30,9 +30,13 @@ test('doctor waits for vitals then requests and receives a fresh nurse assessmen
     await doctor.reload();
     await doctor.getByRole('row').filter({ hasText: 'DEMO-VISIT-2' }).getByRole('link', { name: 'Review visit' }).click();
     await expect(doctor.getByText('Fictional initial observations for doctor review.', { exact: true })).toBeVisible();
+    await doctor.getByRole('button', { name: /^Reassessment requests/ }).click();
     await doctor.getByLabel('Reason for requesting a new assessment').fill('Fictional repeat measurement request before consultation.');
     await doctor.getByRole('button', { name: 'Request latest nurse assessment' }).click();
+    await expect(doctor.getByText(/waiting for nurse\. The values below/)).toBeVisible();
+    await doctor.getByRole('button', { name: /^Reassessment requests Pending/ }).click();
     await expect(doctor.getByRole('heading', { name: /waiting for nurse/ })).toBeVisible();
+    await doctor.getByRole('button', { name: 'Close reassessment requests' }).click();
     await nurse.goto('/dashboard');
     await nurse.getByRole('link', { name: /Reassessment requests/ }).click();
     await nurse.getByRole('row').filter({ hasText: 'DEMO-VISIT-2' }).getByRole('link', { name: 'Open assessment' }).click();
@@ -48,6 +52,7 @@ test('doctor waits for vitals then requests and receives a fresh nurse assessmen
     await expect(doctor.getByText('Fictional follow-up observations after reassessment.', { exact: true })).toBeVisible();
     await expect(doctor.getByText('75 bpm', { exact: true })).toBeVisible();
     await expect(doctor.getByRole('heading', { name: /waiting for nurse/ })).toHaveCount(0);
+    await doctor.getByRole('button', { name: /^Reassessment requests/ }).click();
     await doctor.getByText('Recent reassessment requests', { exact: true }).click();
     await expect(doctor.getByText('Completed', { exact: true })).toBeVisible();
     await doctor.setViewportSize({ width: 390, height: 844 });
