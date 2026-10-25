@@ -31,9 +31,11 @@ class CreateAdmin extends Command
             'password_confirmation' => $this->secret('Confirm password'),
         ];
         $validator = Validator::make($data, [
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255', 'not_regex:/\d/'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::min(8), 'max:72'],
+        ], [
+            'name.not_regex' => 'The name must not contain numbers.',
         ]);
         if ($validator->fails()) {
             foreach ($validator->errors()->all() as $error) {
@@ -47,6 +49,7 @@ class CreateAdmin extends Command
             $this->callSilent('db:seed', ['--class' => RolePermissionSeeder::class, '--force' => true]);
             $user = new User(collect($data)->only(['name', 'email', 'password'])->all());
             $user->is_active = true;
+            $user->primary_role = 'System Admin';
             $user->save();
             $user->assignRole('System Admin');
             activity('staff')->performedOn($user)->withProperties(['source' => 'artisan', 'roles' => ['System Admin']])->log('staff.admin_bootstrapped');

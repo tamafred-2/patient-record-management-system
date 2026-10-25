@@ -1,8 +1,10 @@
 <?php
 
+use App\Exceptions\ExportUnavailable;
 use App\Http\Middleware\EnsureActiveAccount;
 use App\Http\Middleware\EnsurePasswordCurrent;
 use App\Http\Middleware\RecordUserActivity;
+use App\Http\Middleware\ScrollQueueResponse;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -16,10 +18,18 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->web(append: [EnsureActiveAccount::class, EnsurePasswordCurrent::class, RecordUserActivity::class]);
+        $middleware->web(append: [EnsureActiveAccount::class, EnsurePasswordCurrent::class, RecordUserActivity::class, ScrollQueueResponse::class]);
         $middleware->redirectUsersTo('/dashboard');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->dontReport([ExportUnavailable::class]);
+        $exceptions->render(function (ExportUnavailable $exception, Request $request) {
+            $response = $request->expectsJson()
+                ? response()->json(['message' => $exception->getMessage()], $exception->getStatusCode())
+                : response()->view('errors.export-unavailable', ['message' => $exception->getMessage()], $exception->getStatusCode());
+
+            return $response->withHeaders($exception->getHeaders())->header('Cache-Control', 'no-store, private');
+        });
         $exceptions->render(function (HttpException $exception, Request $request) {
             if ($exception->getStatusCode() !== 419 || $request->expectsJson()
                 || ! $request->routeIs('login.store', 'logout')) {
