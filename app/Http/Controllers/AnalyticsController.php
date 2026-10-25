@@ -21,7 +21,7 @@ class AnalyticsController extends Controller
     public function __invoke(Request $request)
     {
         Gate::authorize('analytics.view');
-        $input = $request->validate(['from' => ['nullable', 'date_format:Y-m-d'], 'to' => ['nullable', 'date_format:Y-m-d'], 'interval' => ['nullable', 'in:daily,weekly,monthly,yearly']]);
+        $input = $request->validate(['from' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()], 'to' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()], 'interval' => ['nullable', 'in:daily,weekly,monthly,yearly']]);
         $from = $input['from'] ?? now('Asia/Manila')->startOfMonth()->toDateString();
         $to = $input['to'] ?? now('Asia/Manila')->toDateString();
         if ($from > $to || CarbonImmutable::parse($from)->diffInDays(CarbonImmutable::parse($to)) > 365) {

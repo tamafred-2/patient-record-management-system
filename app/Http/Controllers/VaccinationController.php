@@ -15,12 +15,12 @@ class VaccinationController extends Controller
     public function index(Request $request)
     {
         Gate::authorize('vaccinations.view');
-        $data = $request->validate(['all' => ['sometimes', 'boolean'], 'date' => ['nullable', 'date_format:Y-m-d'], 'search' => ['nullable', 'string', 'max:100']]);
+        $data = $request->validate(['all' => ['sometimes', 'boolean'], 'date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()], 'search' => ['nullable', 'string', 'max:100']]);
         $allDates = (bool) ($data['all'] ?? false);
         $date = $data['date'] ?? now('Asia/Manila')->toDateString();
         $search = trim($data['search'] ?? '');
         $visits = Visit::vaccinationVisits()->with('patient')->withCount('vaccinationRecords')
-            ->when(! $allDates, fn ($query) => $query->whereDate('visit_date', $date))->searchPatientOrQueue($search)->latest('id')->paginate(20)->withQueryString();
+            ->when(! $allDates, fn ($query) => $query->whereDate('visit_date', $date))->searchPatientOrQueue($search)->priorityFirst()->scrollPaginate()->withQueryString();
 
         return view('vaccinations.index', compact('allDates', 'search', 'date', 'visits'));
     }
@@ -32,7 +32,7 @@ class VaccinationController extends Controller
         $record = $record === null ? null : $visit->vaccinationRecords()->findOrFail($record);
         $history = VaccinationRecord::with(['visit', 'recorder'])
             ->whereHas('visit', fn ($query) => $query->where('patient_id', $patient->id))
-            ->orderByDesc('administered_on')->latest('id')->paginate(15);
+            ->orderByDesc('administered_on')->latest('id')->scrollPaginate();
 
         return view('vaccinations.show', compact('patient', 'visit', 'record', 'history'));
     }
@@ -50,7 +50,7 @@ class VaccinationController extends Controller
             'dose' => ['required', 'string', 'max:100'],
             'administered_on' => ['required', 'date_format:Y-m-d', 'date_equals:'.$visit->visit_date->toDateString(), 'before_or_equal:'.now('Asia/Manila')->toDateString()],
             'batch_number' => ['nullable', 'string', 'max:100'],
-            'administered_by' => ['required', 'string', 'max:200'],
+            'administered_by' => ['required', 'string', 'max:200', 'not_regex:/\d/'],
             'next_appointment' => ['nullable', 'date_format:Y-m-d', 'after:administered_on'],
             'remarks' => ['nullable', 'string', 'max:1000'],
             'confirm' => ['accepted'],
@@ -58,6 +58,8 @@ class VaccinationController extends Controller
             'submission_token' => $record === null ? ['required', 'uuid'] : ['prohibited'],
             'patient_id' => ['prohibited'], 'visit_id' => ['prohibited'], 'created_by' => ['prohibited'], 'updated_by' => ['prohibited'],
             'created_at' => ['prohibited'], 'updated_at' => ['prohibited'],
+        ], [
+            'administered_by.not_regex' => 'The administering staff name must not contain numbers.',
         ]);
         DB::transaction(function () use ($request, $patient, $visit, $record, $data) {
             $visit = $patient->visits()->vaccinationVisits()->whereKey($visit->id)->lockForUpdate()->firstOrFail();

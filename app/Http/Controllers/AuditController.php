@@ -61,8 +61,8 @@ class AuditController extends Controller
     {
         Gate::authorize('audit.view');
         $filters = $request->validate([
-            'from' => ['nullable', 'date_format:Y-m-d'],
-            'to' => ['nullable', 'date_format:Y-m-d'],
+            'from' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()],
+            'to' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()],
             'staff' => ['nullable', 'regex:/^(system|[1-9][0-9]*)$/'],
             'action' => ['nullable', Rule::in(array_keys(self::ACTIONS))],
         ]);
@@ -91,7 +91,7 @@ class AuditController extends Controller
         if (! empty($filters['action'])) {
             $query->where('description', $filters['action']);
         }
-        $events = $query->orderByDesc('created_at')->orderByDesc('id')->paginate(25)->withQueryString();
+        $events = $query->orderByDesc('created_at')->orderByDesc('id')->scrollPaginate()->withQueryString();
         $staff = User::orderBy('name')->get(['id', 'name', 'is_active']);
         $staffById = $staff->keyBy('id');
         $events->getCollection()->transform(function ($event) use ($staffById, $userType) {

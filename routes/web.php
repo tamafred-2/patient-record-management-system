@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AssessmentController;
+use App\Http\Controllers\AssessmentRequestController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ConsultationController;
@@ -9,12 +10,20 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DispensingController;
 use App\Http\Controllers\DispositionController;
 use App\Http\Controllers\EligibilityController;
+use App\Http\Controllers\FollowupController;
+use App\Http\Controllers\FollowUpScheduleController;
 use App\Http\Controllers\HistoryController;
 use App\Http\Controllers\LaboratoryController;
+use App\Http\Controllers\MedicalCertificateController;
 use App\Http\Controllers\MidwifeCareController;
+use App\Http\Controllers\MidwifeReportController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\NurseAuthorizationController;
 use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PrescriptionController;
+use App\Http\Controllers\PrintCenterController;
+use App\Http\Controllers\PrintController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\StaffController;
@@ -23,11 +32,11 @@ use App\Http\Controllers\VaccinationController;
 use App\Http\Controllers\VisitCompletionController;
 use App\Http\Controllers\VisitController;
 use App\Http\Controllers\VisitPdfController;
+use App\Http\Controllers\VisitPriorityController;
 use Illuminate\Support\Facades\Route;
+use Spatie\Permission\Middleware\RoleMiddleware;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::redirect('/', '/login');
 
 Route::middleware('guest')->group(function () {
     Route::view('/forgot-password', 'auth.forgot-password')->name('password.request');
@@ -36,17 +45,39 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
+    Route::get('/followups/{patient}/visits/{visit}', [FollowupController::class, 'show'])->name('followups.show');
+    Route::get('/nurse-authorizations', [NurseAuthorizationController::class, 'index'])->name('nurse-authorizations.index');
+    Route::get('/nurse-authorizations/{nurse}', [NurseAuthorizationController::class, 'show'])->name('nurse-authorizations.show');
+    Route::put('/nurse-authorizations/{nurse}', [NurseAuthorizationController::class, 'store'])->name('nurse-authorizations.store');
+    Route::post('/nurse-authorizations/{nurse}/visit-grants/{grant}/withdraw', [NurseAuthorizationController::class, 'withdrawVisitGrant'])->name('nurse-authorizations.withdraw-visit-grant');
+    Route::delete('/nurse-authorizations/{nurse}', [NurseAuthorizationController::class, 'destroy'])->name('nurse-authorizations.destroy');
+    Route::post('/followups/{patient}/visits/{visit}/authorizations/{authorization}/revoke', [FollowupController::class, 'revoke'])->name('followups.revoke');
+    Route::post('/followups/{patient}/visits/{visit}/request', [FollowupController::class, 'requestTest'])->name('followups.request');
+    Route::get('/followups/{patient}/visits/{visit}/orders/{order}/slip', [FollowupController::class, 'slip'])->whereUuid('order')->name('followups.slip');
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/panel', [NotificationController::class, 'panel'])->middleware('throttle:30,1,notifications-panel')->name('notifications.panel');
+    Route::get('/notifications/poll', [NotificationController::class, 'poll'])->middleware('throttle:30,1,notifications-poll')->name('notifications.poll');
+    Route::put('/consultations/{patient}/visits/{visit}/follow-up', [FollowUpScheduleController::class, 'update'])->name('visits.follow-up');
+    Route::get('/notifications/{notification}/open', [NotificationController::class, 'open'])->whereUuid('notification')->name('notifications.open');
+    Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+    Route::get('/certificates/{patient}/visits/{visit}', [MedicalCertificateController::class, 'index'])->name('certificates.index');
+    Route::post('/certificates/{patient}/visits/{visit}', [MedicalCertificateController::class, 'store'])->name('certificates.store');
+    Route::get('/certificates/{patient}/visits/{visit}/{certificate}/print', [MedicalCertificateController::class, 'print'])->name('certificates.print');
     Route::get('/password/change', [PasswordController::class, 'edit'])->name('password.edit');
-    Route::put('/password/change', [PasswordController::class, 'update'])->middleware('throttle:6,1')->name('password.update');
+    Route::put('/password/change', [PasswordController::class, 'update'])->middleware('throttle:6,1,password-change')->name('password.update');
     Route::get('/analytics', AnalyticsController::class)->name('analytics.index');
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/pdf', [ReportController::class, 'pdf'])->name('reports.pdf');
     Route::get('/history/{patient}', [HistoryController::class, 'show'])->name('history.show');
+    Route::get('/patients/{patient}/documents', [PrintCenterController::class, 'documents'])->name('print-center.patient');
+    Route::get('/patients/{patient}/summary/print', [PrintCenterController::class, 'summary'])->name('print-center.summary');
     Route::get('/summary/{patient}/visits/{visit}/pdf', VisitPdfController::class)->name('visits.pdf');
     Route::get('/supporting/{patient}/visits/{visit}', [DispositionController::class, 'show'])->name('dispositions.show');
     Route::post('/supporting/{patient}/visits/{visit}', [DispositionController::class, 'store'])->name('dispositions.store');
     Route::get('/audit', [AuditController::class, 'index'])->name('audit.index');
     Route::get('/midwife-care', [MidwifeCareController::class, 'index'])->name('midwife-care.index');
+    Route::get('/midwife-report', [MidwifeReportController::class, 'index'])->name('midwife-report.index');
+    Route::get('/midwife-report/print', [MidwifeReportController::class, 'print'])->name('midwife-report.print');
     Route::get('/midwife-care/{patient}/visits/{visit}', [MidwifeCareController::class, 'show'])->name('midwife-care.show');
     Route::post('/midwife-care/{patient}/visits/{visit}', [MidwifeCareController::class, 'save'])->name('midwife-care.store');
     Route::get('/midwife-care/{patient}/visits/{visit}/records/{record}', [MidwifeCareController::class, 'show'])->name('midwife-care.edit');
@@ -60,6 +91,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/laboratory/{patient}/visits/{visit}', [LaboratoryController::class, 'show'])->name('laboratory.show');
     Route::post('/laboratory/{patient}/visits/{visit}', [LaboratoryController::class, 'save'])->name('laboratory.store');
     Route::get('/laboratory/{patient}/visits/{visit}/records/{record}', [LaboratoryController::class, 'edit'])->name('laboratory.edit');
+    Route::get('/laboratory/{patient}/visits/{visit}/records/{record}/external-slip', [PrintController::class, 'externalLab'])->name('prints.external-lab');
+    Route::get('/prescriptions/{patient}/visits/{visit}/print', [PrintController::class, 'prescription'])->name('prints.prescription');
+    Route::get('/supporting/{patient}/visits/{visit}/records/{record}/print', [PrintController::class, 'referral'])->name('prints.referral');
     Route::put('/laboratory/{patient}/visits/{visit}/records/{record}', [LaboratoryController::class, 'save'])->name('laboratory.update');
     Route::get('/pharmacy', [DispensingController::class, 'index'])->name('pharmacy.index');
     Route::get('/pharmacy/{patient}/visits/{visit}', [DispensingController::class, 'show'])->name('pharmacy.show');
@@ -70,6 +104,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/consultations/{patient}/visits/{visit}/itr', [TreatmentRecordController::class, 'edit'])->name('itr.edit');
     Route::put('/consultations/{patient}/visits/{visit}/itr', [TreatmentRecordController::class, 'save'])->name('itr.save');
     Route::get('/consultations', [ConsultationController::class, 'index'])->name('consultations.index');
+    Route::post('/consultations/{patient}/visits/{visit}/reassessment', [AssessmentRequestController::class, 'store'])->name('reassessments.store');
+    Route::post('/consultations/{patient}/visits/{visit}/reassessment/{assessmentRequest}/cancel', [AssessmentRequestController::class, 'cancel'])->name('reassessments.cancel');
     Route::get('/consultations/{patient}/visits/{visit}', [ConsultationController::class, 'show'])->name('consultations.show');
     Route::get('/eligibility', [EligibilityController::class, 'index'])->name('eligibility.index');
     Route::get('/eligibility/{patient}/visits/{visit}', [EligibilityController::class, 'edit'])->name('eligibility.edit');
@@ -79,6 +115,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/assessments/{patient}/visits/{visit}', [AssessmentController::class, 'save'])->name('assessments.save');
     Route::get('/patients/{patient}/visits/{visit}/completion', [VisitCompletionController::class, 'show'])->name('visits.completion');
     Route::post('/patients/{patient}/visits/{visit}/completion', [VisitCompletionController::class, 'store'])->name('visits.complete');
+    Route::put('/patients/{patient}/visits/{visit}/priority', [VisitPriorityController::class, 'update'])->middleware('throttle:30,1,visit-priority')->name('visits.priority');
     Route::get('/visits', [VisitController::class, 'index'])->name('visits.index');
     Route::get('/visit-monitor/{patient}/visits/{visit}', [VisitController::class, 'monitor'])->middleware('can:visits.monitor')->name('visits.monitor');
     Route::get('/patients/{patient}/visits/create', [VisitController::class, 'create'])->name('patients.visits.create');
@@ -95,12 +132,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
     Route::get('/dashboard', [DashboardController::class, '__invoke'])->name('dashboard');
     Route::get('/dashboard/visits', [DashboardController::class, 'visits'])->name('dashboard.visits');
-    Route::middleware(['can:users.manage', 'can:roles.manage'])->group(function () {
+    Route::middleware([RoleMiddleware::class.':System Admin', 'can:users.manage', 'can:roles.manage'])->group(function () {
         Route::get('/staff', [StaffController::class, 'index'])->name('staff.index');
         Route::get('/staff/create', [StaffController::class, 'create'])->name('staff.create');
         Route::post('/staff', [StaffController::class, 'store'])->name('staff.store');
         Route::get('/staff/{user}/edit', [StaffController::class, 'edit'])->name('staff.edit');
-        Route::post('/staff/{user}/reset-password', [PasswordController::class, 'reset'])->middleware('throttle:6,1')->name('staff.password.reset');
+        Route::post('/staff/{user}/reset-password', [PasswordController::class, 'reset'])->middleware('throttle:6,1,staff-password-reset')->name('staff.password.reset');
         Route::patch('/staff/{user}', [StaffController::class, 'update'])->name('staff.update');
     });
 });

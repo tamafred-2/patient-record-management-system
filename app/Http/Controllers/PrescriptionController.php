@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Patient;
 use App\Models\Prescription;
+use App\Support\WorkflowAlerts;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -112,6 +113,7 @@ class PrescriptionController extends Controller
             $record->lock_version++;
             $record->save();
             activity('prescriptions')->causedBy($request->user())->performedOn($record)->withProperties(['visit_id' => $visit->id, 'version' => $record->lock_version, 'status' => 'ISSUED'])->log('prescription.issued');
+            WorkflowAlerts::send('prescription_issued', $visit, WorkflowAlerts::pharmacists(), $request->user());
         });
 
         return redirect()->route('prescriptions.show', [$patient, $visit])->with('status', 'Prescription issued and available in Pharmacy. The pharmacist can check availability and record medicines released.');
