@@ -10,6 +10,7 @@ use App\Models\Service;
 use App\Models\VaccinationRecord;
 use App\Models\Visit;
 use App\Support\FollowUpReminders;
+use App\Support\ListFilters;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -19,7 +20,7 @@ class DashboardController extends Controller
     public function __invoke(Request $request)
     {
         Gate::authorize('dashboard.view');
-        $input = $request->validate(['search' => ['nullable', 'string', 'max:100'], 'service_id' => ['nullable', 'integer', 'min:1']]);
+        $input = $request->validate(['search' => ListFilters::search(), 'service_id' => ['nullable', 'integer', 'min:1']]);
         $search = trim($input['search'] ?? '');
         $serviceId = $input['service_id'] ?? null;
         $today = now('Asia/Manila')->toDateString();
@@ -32,8 +33,8 @@ class DashboardController extends Controller
             $total = (clone $todayVisitQuery())->count();
             $summaryCards = [
                 ['Visits today', $total, 'All registered visits for today', '#today-visits'],
-                ['Open today', (clone $todayVisitQuery())->where('status', 'OPEN')->count(), "Today's visits not yet completed"],
-                ['Completed today', (clone $todayVisitQuery())->where('status', 'COMPLETED')->count(), "Today's visits marked completed"],
+                ['Open today', (clone $todayVisitQuery())->where('status', Visit::OPEN)->count(), "Today's visits not yet completed"],
+                ['Completed today', (clone $todayVisitQuery())->where('status', Visit::COMPLETED)->count(), "Today's visits marked completed"],
                 ['All visits', Visit::whereHas('patient')->count(), 'All dates · View visit history', route('visits.index', ['all' => 1])],
             ];
         }
@@ -59,7 +60,7 @@ class DashboardController extends Controller
             $summaryCards[] = ['Assessed this month', $monthlyAssessments, "This month's assessments", Gate::allows('analytics.view') ? route('analytics.index', ['from' => $monthStart, 'to' => $today]) : '#today-assessments'];
             $summaryCards[] = ['Assessed today', $saved, 'Visits with saved initial assessment', '#today-assessments'];
             $summaryCards[] = ['Not yet assessed', (clone $todayVisitQuery())->count() - $saved, 'No assessment recorded', '#today-assessments'];
-            $summaryCards[] = ['Reassessment requests', Visit::whereHas('patient')->where('status', 'OPEN')->has('pendingAssessmentRequest')->count(), 'Pending requests across all dates', route('assessments.index', ['reassessment' => 1])];
+            $summaryCards[] = ['Reassessment requests', Visit::whereHas('patient')->where('status', Visit::OPEN)->has('pendingAssessmentRequest')->count(), 'Pending requests across all dates', route('assessments.index', ['reassessment' => 1])];
         }
         if (! $overview && Gate::allows('consultations.view')) {
             $allVisits = Visit::whereHas('patient')->has('vitalSign');
@@ -69,7 +70,7 @@ class DashboardController extends Controller
             }
             $summaryCards[] = ['ITRs saved', $saved, 'All dates', route('consultations.index', ['all' => 1, 'record' => 'with_itr'])];
             $summaryCards[] = ['Without saved ITR', (clone $allVisits)->count() - $saved, 'All dates · No ITR recorded', route('consultations.index', ['all' => 1, 'record' => 'without_itr'])];
-            $summaryCards[] = ['Issued prescriptions', (clone $allVisits)->whereHas('prescription', fn ($query) => $query->where('status', 'ISSUED'))->count(), 'All dates', route('consultations.index', ['all' => 1, 'record' => 'issued'])];
+            $summaryCards[] = ['Issued prescriptions', (clone $allVisits)->whereHas('prescription', fn ($query) => $query->issued())->count(), 'All dates', route('consultations.index', ['all' => 1, 'record' => 'issued'])];
         }
         if (! $overview && Gate::allows('laboratory.view')) {
             $summaryCards[] = ['Total lab records', LaboratoryRecord::whereIn('visit_id', Visit::whereHas('patient')->select('id'))->count(), 'All dates', route('laboratory.index', ['all' => 1])];
@@ -78,14 +79,15 @@ class DashboardController extends Controller
             }
         }
         if (! $overview && Gate::allows('pharmacy.view')) {
-            $summaryCards[] = ['Total prescriptions', Prescription::whereIn('visit_id', Visit::whereHas('patient')->select('id'))->where('status', 'ISSUED')->count(), 'All issued prescriptions', route('pharmacy.index', ['all' => 1])];
+            $summaryCards[] = ['Total prescriptions', Prescription::whereIn('visit_id', Visit::whereHas('patient')->select('id'))->issued()->count(), 'All issued prescriptions', route('pharmacy.index', ['all' => 1])];
             $start = now('Asia/Manila')->startOfDay();
-            $releases = DB::table('dispensings')->join('prescriptions', 'prescriptions.id', '=', 'dispensings.prescription_id')->join('visits', 'visits.id', '=', 'prescriptions.visit_id')->join('patients', 'patients.id', '=', 'visits.patient_id')->whereNull('patients.deleted_at')
+            $releases = DB::table('dispensings')->whereNull('dispensings.voided_at')
+                ->whereExists(fn ($items) => $items->selectRaw('1')->from('dispensing_items')->whereColumn('dispensing_items.dispensing_id', 'dispensings.id')->where('dispensing_items.quantity_dispensed', '>', 0))->join('prescriptions', 'prescriptions.id', '=', 'dispensings.prescription_id')->join('visits', 'visits.id', '=', 'prescriptions.visit_id')->join('patients', 'patients.id', '=', 'visits.patient_id')->whereNull('patients.deleted_at')
                 ->where('dispensings.dispensed_at', '>=', $start->copy()->utc())->where('dispensings.dispensed_at', '<', $start->copy()->addDay()->utc())->count();
             $summaryCards[] = ['Releases today', $releases, "Today's medicine releases", route('pharmacy.index', ['all' => 1])];
-            $prescriptions = Prescription::whereIn('visit_id', $todayVisitIds)->where('status', 'ISSUED');
+            $prescriptions = Prescription::whereIn('visit_id', $todayVisitIds)->issued();
             $summaryCards[] = ['Issued prescriptions', (clone $prescriptions)->count(), 'Available for Pharmacy'];
-            $summaryCards[] = ['Awaiting first release', (clone $prescriptions)->doesntHave('dispensings')->count(), 'Issued prescriptions without a release'];
+            $summaryCards[] = ['Awaiting first release', (clone $prescriptions)->doesntHave('activeDispensings')->count(), 'Issued prescriptions without a release'];
         }
         if (! $overview && Gate::allows('midwife-care.view')) {
             $summaryCards[] = ['Midwife care records', MidwifeCareRecord::whereIn('visit_id', $todayVisitIds)->count(), 'Saved for today\'s visits'];
@@ -171,7 +173,7 @@ class DashboardController extends Controller
         return match ($section) {
             'assessments' => $query->with('pendingAssessmentRequest'),
             'laboratory' => $query->forLaboratory(),
-            'pharmacy' => $query->with('prescription')->whereHas('prescription', fn ($prescription) => $prescription->where('status', 'ISSUED')),
+            'pharmacy' => $query->with('prescription')->whereHas('prescription', fn ($prescription) => $prescription->issued()),
             'midwife' => $query->midwifeCareVisits()->withCount('midwifeCareRecords'),
             'vaccinations' => $query->vaccinationVisits()->withCount('vaccinationRecords'),
             default => $query,
@@ -181,7 +183,7 @@ class DashboardController extends Controller
     public function visits(Request $request)
     {
         Gate::authorize('dashboard.view');
-        $input = $request->validate(['search' => ['nullable', 'string', 'max:100'], 'service_id' => ['nullable', 'integer', 'min:1'], 'cursor' => ['nullable', 'string', 'max:1000'], 'section' => ['nullable', 'in:visits,assessments,laboratory,pharmacy,midwife,vaccinations']]);
+        $input = $request->validate(['search' => ListFilters::search(), 'service_id' => ['nullable', 'integer', 'min:1'], 'cursor' => ['nullable', 'string', 'max:1000'], 'section' => ['nullable', 'in:visits,assessments,laboratory,pharmacy,midwife,vaccinations']]);
         $section = $input['section'] ?? 'visits';
         abort_unless($this->allowsSection($section), 403);
         $search = trim($input['search'] ?? '');

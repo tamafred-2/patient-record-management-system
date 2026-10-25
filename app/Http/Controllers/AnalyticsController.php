@@ -11,6 +11,7 @@ use App\Models\TreatmentRecord;
 use App\Models\VaccinationRecord;
 use App\Models\Visit;
 use App\Services\DiagnosisLabels;
+use App\Support\ListFilters;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -21,7 +22,7 @@ class AnalyticsController extends Controller
     public function __invoke(Request $request)
     {
         Gate::authorize('analytics.view');
-        $input = $request->validate(['from' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()], 'to' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()], 'interval' => ['nullable', 'in:daily,weekly,monthly,yearly']]);
+        $input = $request->validate(['from' => ListFilters::pastDate(), 'to' => ListFilters::pastDate(), 'interval' => ['nullable', 'in:daily,weekly,monthly,yearly']]);
         $from = $input['from'] ?? now('Asia/Manila')->startOfMonth()->toDateString();
         $to = $input['to'] ?? now('Asia/Manila')->toDateString();
         if ($from > $to || CarbonImmutable::parse($from)->diffInDays(CarbonImmutable::parse($to)) > 365) {
@@ -125,12 +126,14 @@ class AnalyticsController extends Controller
         }
         if ($can('pharmacy.view') || $can('consultations.view')) {
             $rx = Prescription::whereIn('visit_id', $ids);
-            $panels['Prescription activity'] = ['Issued prescriptions' => (clone $rx)->where('status', 'ISSUED')->count()];
+            $panels['Prescription activity'] = ['Issued prescriptions' => (clone $rx)->issued()->count()];
             if ($can('consultations.view')) {
-                $panels['Prescription activity']['Draft prescriptions'] = (clone $rx)->where('status', 'DRAFT')->count();
+                $panels['Prescription activity']['Draft prescriptions'] = (clone $rx)->where('status', Prescription::DRAFT)->count();
             }
-            $panels['Prescription activity']['Awaiting first release'] = (clone $rx)->where('status', 'ISSUED')->doesntHave('dispensings')->count();
-            $panels['Prescription activity']['With at least one release'] = (clone $rx)->where('status', 'ISSUED')->has('dispensings')->count();
+            $panels['Prescription activity']['Awaiting first release'] = (clone $rx)->issued()->doesntHave('activeDispensings')->count();
+            $panels['Prescription activity']['With at least one release'] = (clone $rx)->issued()->has('releasedDispensings')->count();
+            $panels['Prescription activity']['With medicines to buy outside'] = (clone $rx)->issued()->withUnreleasedOutcome('BUY_OUTSIDE')->count();
+            $panels['Prescription activity']['With declined medicines'] = (clone $rx)->issued()->withUnreleasedOutcome('DECLINED')->count();
         }
 
         return view('analytics.index', compact('interval', 'from', 'to', 'overview', 'panels', 'trend', 'screening', 'diseases', 'diagnosisCoverage'));

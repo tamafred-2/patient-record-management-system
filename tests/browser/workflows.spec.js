@@ -96,7 +96,7 @@ test('pharmacist release and admin PDF download', async ({ page, browser }) => {
   await page.goto('/pharmacy/1/visits/1');
   await page.getByLabel('Quantity released now', { exact: true }).fill('1');
   await page.getByRole('checkbox').check();
-  await page.getByRole('button', { name: 'Record release', exact: true }).click();
+  await page.getByRole('button', { name: 'Record pharmacy entry', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('release recorded');
   await expect(page.getByRole('heading', { name: 'Release history' })).toBeVisible();
   const context = await browser.newContext();

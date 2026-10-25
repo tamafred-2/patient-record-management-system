@@ -16,7 +16,7 @@ class HistoryController extends Controller
         $clinical = Gate::allows('consultations.view');
         $query = $patient->visits()->with('service')->filterHistory($filters);
         if ($clinical) {
-            $query->with(['vitalSign', 'eligibilityCheck', 'treatmentRecord', 'prescription.dispensings', 'laboratoryRecords', 'dispositionRecords']);
+            $query->with(['vitalSign', 'eligibilityCheck', 'treatmentRecord', 'prescription.dispensings.items', 'laboratoryRecords', 'dispositionRecords']);
         }
         $visits = $query->orderByDesc('visit_date')->orderByDesc('id')->scrollPaginate();
 
