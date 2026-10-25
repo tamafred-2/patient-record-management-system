@@ -4,6 +4,11 @@
         <a href="{{ route('staff.create') }}" class="rounded-lg bg-emerald-800 px-4 py-3 text-sm font-semibold text-white">Create user account</a>
     </div>
     <p class="mb-4 text-sm text-slate-600">Recently active means activity within the last 5 minutes, even if the user has since closed the browser or signed out. Refresh to update.</p>
+    <x-table-filters label="Search users by name or email" :filters="[
+        'role' => ['label' => 'Role', 'options' => array_combine(array_keys(App\Support\AccountRoles::ADDITIONAL), array_keys(App\Support\AccountRoles::ADDITIONAL))],
+        'status' => ['label' => 'Account status', 'options' => ['active' => 'Activated', 'inactive' => 'Deactivated']],
+        'activity' => ['label' => 'Activity', 'options' => ['recent' => 'Recently active', 'offline' => 'Offline']],
+    ]" />
     <x-scroll-queue :paginator="$users" id="users" label="Users, scroll to load more">
 <table class="w-full text-left text-sm">
             <caption class="sr-only">User Accounts, assigned roles and access status</caption>

@@ -24,9 +24,10 @@
         <header><img src="{{ asset('images/rhu-logo.jpg') }}" alt="RHU logo"><div><h1>RHU Calasiao</h1><span>Patient visit stub</span></div></header>
         <div class="queue">Queue number<strong>{{ $visit->queue_reference ?? 'Not recorded' }}</strong></div>
         @if($visit->priority !== 'REGULAR')
-            <p class="priority {{ $visit->priority === 'EMERGENCY' ? 'emergency' : '' }}">{{ $visit->priorityLabel() }}</p>
+            <p class="priority {{ $visit->priority === 'EMERGENCY' ? 'emergency' : '' }}">{{ $visit->priority === 'EMERGENCY' ? 'Emergency care' : 'Priority care' }}<br>{{ $visit->priorityLabel() }}</p>
         @endif
         <dl>
+            <dt>Care priority</dt><dd>{{ $visit->priorityLabel() }}</dd>
             <dt>Patient</dt><dd>{{ $patient->full_name }}</dd>
             <dt>Patient number</dt><dd>{{ $patient->patient_number }}</dd>
             <dt>Visit number</dt><dd>{{ $visit->visit_number }}</dd>

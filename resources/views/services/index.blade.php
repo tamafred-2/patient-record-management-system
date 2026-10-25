@@ -16,8 +16,9 @@
             <x-button type="button" @click="openEditor({ id: null, name: '', code: '', description: '', is_active: '1', url: '{{ route('services.store') }}' })">Add service</x-button>
         </div>
         @error('delete')<x-alert type="error" title="Unable to delete service" class="mt-5">{{ $message }}</x-alert>@enderror
+        <x-table-filters label="Search services" :filters="['status' => ['label' => 'Status', 'options' => ['active' => 'Active', 'inactive' => 'Inactive']]]" />
         <div class="mt-8 overflow-x-auto rounded-xl border border-slate-200 bg-white">
-            <table class="w-full text-left text-sm">
+            <table data-server-filtered class="w-full text-left text-sm">
                 <caption class="sr-only">Configured RHU services and availability</caption>
                 <thead class="bg-slate-50 text-slate-500"><tr><th scope="col" class="p-4">Service</th><th scope="col" class="p-4">Code</th><th scope="col" class="p-4">Status</th><th scope="col" class="p-4 text-left">Action</th></tr></thead>
                 <tbody>
@@ -31,7 +32,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="4" class="p-8 text-center text-slate-500">No services yet. Add a service to get started.</td></tr>
+                        <tr><td colspan="4" class="p-8 text-center text-slate-500">No services match these filters.</td></tr>
                     @endforelse
                 </tbody>
             </table>
