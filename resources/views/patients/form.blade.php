@@ -1,13 +1,10 @@
 <x-layout :title="$patient->exists ? 'Edit patient profile' : 'Register patient'">
-    <a href="{{ $patient->exists ? route('patients.show', $patient) : route('patients.index') }}" class="text-sm text-emerald-800 underline">← {{ $patient->exists ? 'Patient profile' : 'Search patients' }}</a>
+    <x-back-link href="{{ $patient->exists ? route('patients.show', $patient) : route('patients.index') }}">Back to {{ $patient->exists ? 'patient profile' : 'patient search' }}</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">{{ $patient->exists ? 'Edit patient profile' : 'Register patient' }}</h1>
     @if($patient->exists)<p class="mt-2 font-semibold text-emerald-800">{{ $patient->patient_number }} · {{ $patient->full_name }}</p>@endif
     <p class="mt-3 text-slate-600">First name, last name, date of birth, sex and address are required. Leave unknown optional details blank.</p>
     @if($errors->any())
-        <div role="alert" class="mt-5 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
-            <p class="font-semibold">Please review the following:</p>
-            <ul class="mt-2 list-disc pl-5">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
-        </div>
+        <x-alert type="error" title="Please review the following" class="mt-5"><ul class="list-disc pl-5">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></x-alert>
     @endif
     @if($exactDuplicate ?? false)
         @include('patients.exact-duplicate-modal', ['match' => $duplicates->first()])
@@ -39,7 +36,7 @@
                 <x-input no-numbers name="middle_name" label="Middle name (optional)" :value="$patient->middle_name" maxlength="100" />
                 <x-patient-select name="suffix" label="Suffix (optional)" :value="$patient->suffix" :options="['Jr.', 'Sr.', 'II', 'III', 'IV', 'V']" />
                 <x-input name="birth_date" label="Date of birth" type="date" :value="$patient->birth_date?->format('Y-m-d')" :max="now()->format('Y-m-d')" required />
-                <x-patient-select name="sex" label="Sex" :value="$patient->sex" :options="['Male', 'Female', 'Other', 'Not specified']" required />
+                <x-patient-select name="sex" label="Sex" :value="$patient->sex" :options="App\Models\Patient::SEX_OPTIONS" required />
                 <x-patient-select name="civil_status" label="Civil status (optional)" :value="$patient->civil_status" :options="['Single', 'Married', 'Widowed', 'Separated', 'Divorced', 'Other']" />
             </div>
         </fieldset>

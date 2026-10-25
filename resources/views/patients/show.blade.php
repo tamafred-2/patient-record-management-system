@@ -1,8 +1,8 @@
 <x-layout title="Patient profile">
-    <a href="{{ route('patients.index') }}" class="text-sm text-emerald-800 underline">← Patients</a>
+    <x-back-link href="{{ route('patients.index') }}">Back to patients</x-back-link>
     <div class="mt-5 flex flex-wrap items-center justify-between gap-4">
         <div><p class="font-semibold text-emerald-800">{{ $patient->patient_number }}</p><h1 class="mt-2 text-3xl font-semibold">{{ $patient->full_name }}</h1></div>
-        @can('update', $patient)<a href="{{ route('patients.edit', $patient) }}" class="rounded-lg bg-emerald-800 px-4 py-3 font-semibold text-white">Edit profile</a>@endcan
+        @can('update', $patient)<x-button href="{{ route('patients.edit', $patient) }}">Edit profile</x-button>@endcan
     </div>
     <section class="mt-8 rounded-xl border border-slate-200 bg-white p-6">
         <h2 class="text-lg font-semibold">Patient information</h2>
@@ -23,12 +23,15 @@
     </section>
     @if($visits !== null)
         <section class="mt-6 rounded-xl border border-slate-200 bg-white p-6">
-            <div class="mb-5 flex items-center justify-between gap-3"><h2 class="text-lg font-semibold">Visit history</h2>
-                @can('create', [App\Models\Visit::class, $patient])<a href="{{ route('patients.visits.create', $patient) }}" class="rounded-lg bg-emerald-800 px-4 py-2 font-semibold text-white">Start visit</a>@endcan
-            </div>
-            <x-visit-history-filters />
+            <h2 class="mb-5 text-lg font-semibold">Visit history</h2>
+            <x-visit-history-filters embedded class="mb-4" />
+            @can('create', [App\Models\Visit::class, $patient])
+                <div class="mb-4 flex justify-end">
+                    <x-button href="{{ route('patients.visits.create', $patient) }}">Start visit</x-button>
+                </div>
+            @endcan
             @include('visits.table')
         </section>
     @endif
-    @can('history.view')<a class="mt-6 mr-4 inline-block font-semibold text-emerald-800 underline" href="{{ route('history.show',$patient) }}">Patient history timeline</a><a class="mt-6 mr-4 inline-block rounded-lg border border-emerald-800 px-4 py-2 font-semibold text-emerald-800" href="{{ route('print-center.patient',$patient) }}">Documents &amp; printouts</a>@endcan
+    @can('history.view')<a class="mt-6 mr-4 inline-block font-semibold text-emerald-800 underline" href="{{ route('history.show',$patient) }}">Patient history timeline</a><x-button variant="secondary" href="{{ route('print-center.patient',$patient) }}" class="mt-6 mr-4">Documents &amp; printouts</x-button>@endcan
 </x-layout>

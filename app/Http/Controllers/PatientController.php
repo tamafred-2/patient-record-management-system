@@ -6,31 +6,60 @@ use App\Http\Requests\PatientRequest;
 use App\Models\Patient;
 use App\Models\Visit;
 use App\Support\RegistrationAlerts;
+use App\Support\TableSearch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class PatientController extends Controller
 {
+    public const AGE_GROUPS = ['child' => 'Child (0–17)', 'adult' => 'Adult (18–59)', 'senior' => 'Senior citizen (60+)'];
+
+    public const VISIT_FILTERS = ['open' => 'Has an open visit', 'none' => 'No visits yet'];
+
     public function index(Request $request)
     {
         Gate::authorize('viewAny', Patient::class);
-        $data = $request->validate(['q' => ['nullable', 'string', 'max:150']]);
+        $barangays = Patient::whereNotNull('barangay')->where('barangay', '!=', '')->distinct()->orderBy('barangay')->pluck('barangay');
+        $data = $request->validate([
+            'q' => ['nullable', 'string', 'max:150'],
+            'sex' => ['nullable', Rule::in(Patient::SEX_OPTIONS)],
+            'age' => ['nullable', Rule::in(array_keys(self::AGE_GROUPS))],
+            'barangay' => ['nullable', 'string', 'max:150'],
+            'visits' => ['nullable', Rule::in(array_keys(self::VISIT_FILTERS))],
+        ]);
         $search = trim($data['q'] ?? '');
         $query = Patient::query();
-        foreach (preg_split('/\s+/u', $search, -1, PREG_SPLIT_NO_EMPTY) as $term) {
-            // Treat SQL LIKE metacharacters as literal input on both databases.
-            $pattern = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_strtolower($term)).'%';
-            $query->where(function ($query) use ($pattern) {
-                foreach (['patient_number', 'first_name', 'middle_name', 'last_name', 'suffix'] as $field) {
-                    $query->orWhereRaw("LOWER({$field}) LIKE ? ESCAPE '!'", [$pattern]);
-                }
-            });
-        }
+        TableSearch::apply($query, $search, Patient::SEARCH_COLUMNS);
+        $query->when($data['sex'] ?? null, fn ($query, $sex) => $query->where('sex', $sex))
+            ->when($data['barangay'] ?? null, fn ($query, $barangay) => $query->where('barangay', $barangay))
+            ->when($data['age'] ?? null, function ($query, $age) {
+                // Age is compared through birth-date cutoffs so the filter works on SQLite and PostgreSQL alike.
+                $today = now('Asia/Manila')->startOfDay();
+                $adultFrom = $today->copy()->subYears(18)->toDateString();
+                $seniorFrom = $today->copy()->subYears(60)->toDateString();
+                match ($age) {
+                    'child' => $query->whereDate('birth_date', '>', $adultFrom),
+                    'adult' => $query->whereDate('birth_date', '<=', $adultFrom)->whereDate('birth_date', '>', $seniorFrom),
+                    'senior' => $query->whereDate('birth_date', '<=', $seniorFrom),
+                };
+            })
+            ->when(($data['visits'] ?? null) === 'open', fn ($query) => $query->whereHas('visits', fn ($visits) => $visits->where('status', Visit::OPEN)))
+            ->when(($data['visits'] ?? null) === 'none', fn ($query) => $query->doesntHave('visits'));
 
-        return view('patients.index', ['patients' => $query->orderBy('last_name')->orderBy('first_name')->orderBy('id')->scrollPaginate()->withQueryString(), 'search' => $search]);
+        return view('patients.index', [
+            'patients' => $query->orderBy('last_name')->orderBy('first_name')->orderBy('id')->scrollPaginate()->withQueryString(),
+            'search' => $search,
+            'filterOptions' => [
+                'sex' => ['label' => 'Sex', 'options' => array_combine(Patient::SEX_OPTIONS, Patient::SEX_OPTIONS)],
+                'age' => ['label' => 'Age group', 'options' => self::AGE_GROUPS],
+                'barangay' => ['label' => 'Barangay', 'options' => $barangays->combine($barangays)->all()],
+                'visits' => ['label' => 'Visits', 'options' => self::VISIT_FILTERS],
+            ],
+        ]);
     }
 
     public function create()
