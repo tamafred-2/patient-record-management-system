@@ -16,6 +16,11 @@ class Patient extends Model
         return $this->hasMany(Visit::class);
     }
 
+    public function isSeniorOn(string $date): bool
+    {
+        return $this->birth_date && $this->birth_date->copy()->addYears(60)->toDateString() <= $date;
+    }
+
     public const DEMOGRAPHICS = [
         'first_name', 'middle_name', 'last_name', 'suffix', 'birth_date', 'sex', 'civil_status',
         'contact_number', 'barangay', 'municipality', 'province', 'emergency_contact_name', 'emergency_contact_number',

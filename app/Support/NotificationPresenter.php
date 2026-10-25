@@ -5,10 +5,12 @@ namespace App\Support;
 use App\Models\FollowupAuthorization;
 use App\Models\LaboratoryRecord;
 use App\Models\NurseAuthorization;
+use App\Models\Patient;
 use App\Models\User;
 use App\Models\Visit;
 use App\Notifications\LabOrderingAuthorized;
 use App\Notifications\NurseOrderingChanged;
+use App\Notifications\RegistrationAlert;
 use App\Notifications\WorkflowAlert;
 use Illuminate\Notifications\DatabaseNotification;
 
@@ -21,6 +23,7 @@ class NotificationPresenter
         $data = $notification->data;
 
         return match ($notification->type) {
+            RegistrationAlert::class => self::registration($data, $viewer),
             WorkflowAlert::class => self::workflow($data, $viewer),
             NurseOrderingChanged::class => self::standing($data, $viewer),
             LabOrderingAuthorized::class => self::visitGrant($data, $viewer),
@@ -31,6 +34,31 @@ class NotificationPresenter
     private static function result(string $headline, ?string $details = null, ?string $state = null, ?string $url = null, bool $urgent = false): array
     {
         return compact('headline', 'details', 'state', 'url', 'urgent');
+    }
+
+    private static function registration(array $data, User $viewer): array
+    {
+        $isVisit = isset($data['visit_id']);
+        $headline = $isVisit ? 'New visit registered' : 'New patient registered';
+        $patient = Patient::find($data['patient_id'] ?? null);
+        if (! $viewer->is_active || ! $patient) {
+            return self::result($headline);
+        }
+        if (! $isVisit) {
+            return $viewer->can('view', $patient)
+                ? self::result($headline.': '.$patient->full_name, $patient->patient_number, null, route('patients.show', $patient))
+                : self::result($headline);
+        }
+        $visit = $patient->visits()->find($data['visit_id']);
+        if (! $visit) {
+            return self::result($headline);
+        }
+        $route = $viewer->can('view', $visit) ? 'patients.visits.show'
+            : ($viewer->can('visits.monitor') ? 'visits.monitor' : null);
+
+        return $route
+            ? self::result($headline.': '.$patient->full_name, $visit->visit_number.' · Queue '.($visit->queue_reference ?? 'not recorded'), null, route($route, [$patient, $visit]))
+            : self::result($headline);
     }
 
     private static function workflow(array $data, User $viewer): array
