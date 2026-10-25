@@ -1,14 +1,20 @@
 <x-layout title="Patient history">
-    <h1 class="text-3xl font-semibold">Patient history</h1>
+    @can('view', $patient)
+        <x-back-link href="{{ route('patients.show', $patient) }}">Back to patient profile</x-back-link>
+    @else
+        {{-- Doctors reach the timeline from a visit and may not have registry access. --}}
+        <x-back-link href="{{ url()->previous() !== url()->current() ? url()->previous() : route('dashboard') }}">Back</x-back-link>
+    @endcan
+    <h1 class="mt-5 text-3xl font-semibold">Patient history</h1>
     <p class="mt-3 font-medium">{{ $patient->full_name }} &middot; {{ $patient->patient_number }}</p>
     <p class="mt-2 text-sm text-slate-500">Registered {{ $patient->created_at->timezone('Asia/Manila')->format('M j, Y g:i A') }}. Events show original recording times.</p>
     <div class="mt-4 flex flex-wrap gap-3">
-        <a href="{{ route('print-center.patient', $patient) }}" class="rounded-lg border border-emerald-800 px-4 py-2 text-sm font-semibold text-emerald-800">Documents &amp; printouts</a>
-        <a href="{{ route('print-center.summary', $patient) }}" class="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white">Print patient summary</a>
+        <x-button variant="secondary" href="{{ route('print-center.patient', $patient) }}">Documents &amp; printouts</x-button>
+        <x-button href="{{ route('print-center.summary', $patient) }}">Print patient summary</x-button>
     </div>
-    <x-visit-history-filters />
-    <div class="mt-6 space-y-5">
-        <x-scroll-queue :paginator="$visits" id="visits" kind="cards" label="Record history, scroll to load more"><div data-queue-items>@forelse($visits as $visit)
+    <div class="mt-6 rounded-xl border border-slate-200 bg-white">
+        <x-visit-history-filters embedded class="p-4" />
+        <x-scroll-queue flush :paginator="$visits" id="visits" kind="cards" label="Record history, scroll to load more"><div data-queue-items>@forelse($visits as $visit)
             <section class="rounded-xl border border-slate-200 bg-white p-6">
                 <div class="flex flex-wrap items-center justify-between gap-2"><h2 class="text-lg font-semibold">{{ $visit->visit_number }} &middot; {{ $visit->visit_date->format('M j, Y') }}</h2><a href="{{ route('print-center.patient', [$patient, 'visit' => $visit->id]) }}#visit-{{ $visit->id }}" class="text-sm font-semibold text-emerald-800 underline">Printouts</a></div>
                 <p class="mt-2 text-sm">{{ $visit->service->name }} &middot; {{ $visit->status }}</p>
@@ -19,7 +25,7 @@
                         if ($visit->prescription) {
                             $events->push(['at'=>$visit->prescription->created_at,'label'=>'Prescription drafted']);
                             if ($visit->prescription->prescribed_at) $events->push(['at'=>$visit->prescription->prescribed_at,'label'=>'Prescription issued']);
-                            foreach ($visit->prescription->dispensings as $release) $events->push(['at'=>$release->dispensed_at,'label'=>'Medicine release recorded']);
+                            foreach ($visit->prescription->dispensings as $release) $events->push(['at'=>$release->dispensed_at,'label'=>$release->items->contains(fn ($line) => $line->quantity_dispensed > 0) ? 'Medicine release recorded' : 'Pharmacy outcome recorded (not released here)']);
                         }
                         foreach ($visit->laboratoryRecords as $entry) $events->push(['at'=>$entry->created_at,'label'=>'Laboratory service recorded']);
                         foreach ($visit->dispositionRecords as $entry) $events->push(['at'=>$entry->created_at,'label'=>App\Models\DispositionRecord::TYPES[$entry->type]]);

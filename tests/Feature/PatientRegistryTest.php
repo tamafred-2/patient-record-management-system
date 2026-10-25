@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Patient;
+use App\Models\Service;
 use App\Models\User;
+use App\Models\Visit;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
@@ -209,6 +211,33 @@ class PatientRegistryTest extends TestCase
         $this->get('/patients?q=%25')->assertOk()->assertDontSee($patient->patient_number);
         $this->get('/patients?q=missing')->assertOk()->assertSee('No matching patients');
         $this->get('/patients?q[]=bad')->assertSessionHasErrors('q');
+    }
+
+    public function test_registry_filters_by_sex_age_group_barangay_and_visits_with_search(): void
+    {
+        $this->travelTo(now('Asia/Manila')->setDate(2026, 10, 25)->setTime(9, 0));
+        $staff = $this->staff();
+        $this->actingAs($staff);
+        $child = $this->register(['first_name' => 'Filter', 'last_name' => 'Child', 'birth_date' => '2015-05-01', 'sex' => 'Male', 'barangay' => 'Alpha']);
+        $adult = $this->register(['first_name' => 'Filter', 'last_name' => 'Adult', 'birth_date' => '1990-05-01', 'sex' => 'Female', 'barangay' => 'Beta']);
+        $senior = $this->register(['first_name' => 'Filter', 'last_name' => 'Senior', 'birth_date' => '1966-10-25', 'sex' => 'Female', 'barangay' => 'Alpha']);
+        $service = Service::create(['name' => 'Consultation', 'code' => 'CONSULT_FILTER']);
+        Visit::forceCreate(['patient_id' => $adult->id, 'service_id' => $service->id, 'created_by' => $staff->id, 'visit_date' => '2026-10-25', 'status' => Visit::OPEN]);
+        Visit::forceCreate(['patient_id' => $senior->id, 'service_id' => $service->id, 'created_by' => $staff->id, 'visit_date' => '2026-10-20', 'status' => Visit::COMPLETED]);
+
+        $this->get('/patients')->assertOk()->assertSee('Age group')->assertSee('<option value="Alpha"', false)->assertSee('<option value="Beta"', false);
+        $this->get('/patients?sex=Female')->assertSee($adult->patient_number)->assertSee($senior->patient_number)->assertDontSee($child->patient_number);
+        // Turning 60 today counts as a senior citizen; a 17-year-old is a child.
+        $this->get('/patients?age=senior')->assertSee($senior->patient_number)->assertDontSee($adult->patient_number)->assertDontSee($child->patient_number);
+        $this->get('/patients?age=child')->assertSee($child->patient_number)->assertDontSee($adult->patient_number);
+        $this->get('/patients?age=adult')->assertSee($adult->patient_number)->assertDontSee($senior->patient_number)->assertDontSee($child->patient_number);
+        $this->get('/patients?barangay=Alpha')->assertSee($child->patient_number)->assertSee($senior->patient_number)->assertDontSee($adult->patient_number);
+        $this->get('/patients?visits=open')->assertSee($adult->patient_number)->assertDontSee($senior->patient_number)->assertDontSee($child->patient_number);
+        $this->get('/patients?visits=none')->assertSee($child->patient_number)->assertDontSee($adult->patient_number)->assertDontSee($senior->patient_number);
+        $this->get('/patients?q=filter&sex=Female&barangay=Alpha')->assertSee($senior->patient_number)->assertDontSee($adult->patient_number)->assertSee('1 patient found');
+        $this->get('/patients?sex=Unknown')->assertSessionHasErrors('sex');
+        $this->get('/patients?age=elderly')->assertSessionHasErrors('age');
+        $this->get('/patients?visits=all')->assertSessionHasErrors('visits');
     }
 
     public function test_archived_profiles_are_not_listed_or_exposed_and_no_delete_route_exists(): void
