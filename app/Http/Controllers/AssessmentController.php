@@ -25,17 +25,15 @@ class AssessmentController extends Controller
         $allDates = $authorizedOnly || $reassessmentOnly || (bool) ($data['all'] ?? false);
         $date = $data['date'] ?? now('Asia/Manila')->toDateString();
         $search = trim($data['search'] ?? '');
-        $pendingCount = Visit::whereHas('patient')->where('status', 'OPEN')->has('pendingAssessmentRequest')->count();
         $nurse = $request->user();
         $standing = FollowupAccess::nurse($nurse) && (bool) NurseAuthorization::activeFor($nurse)?->usable();
-        $authorizedCount = FollowupAccess::nurse($nurse) ? Visit::whereHas('patient')->orderableBy($nurse, $standing)->count() : 0;
         $visits = Visit::with(['patient', 'service', 'vitalSign', 'pendingAssessmentRequest'])->whereHas('patient')
             ->withCount(['followupAuthorizations as authorized_followups_count' => fn ($query) => $query->availableTo($nurse)])
             ->when($authorizedOnly, fn ($query) => $query->orderableBy($nurse, $standing))
             ->when($reassessmentOnly, fn ($query) => $query->where('status', 'OPEN')->has('pendingAssessmentRequest'))
             ->when(! $allDates, fn ($query) => $query->whereDate('visit_date', $date))->searchPatientOrQueue($search)->priorityFirst()->scrollPaginate()->withQueryString();
 
-        return view('assessments.index', compact('allDates', 'search', 'visits', 'date', 'pendingCount', 'reassessmentOnly', 'authorizedOnly', 'authorizedCount', 'standing'));
+        return view('assessments.index', compact('allDates', 'search', 'visits', 'date', 'reassessmentOnly', 'authorizedOnly', 'standing'));
     }
 
     public function edit(Request $request, Patient $patient, string $visit)

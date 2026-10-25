@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Support\AccountRoles;
+use App\Support\TableSearch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
@@ -15,9 +16,25 @@ use Spatie\Permission\Models\Role;
 
 class StaffController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return view('staff.index', ['users' => User::with('roles')->orderBy('name')->orderBy('id')->scrollPaginate()]);
+        $filters = $request->validate(['search' => ['nullable', 'string', 'max:100'], 'role' => ['nullable', Rule::in(array_keys(AccountRoles::ADDITIONAL))], 'status' => ['nullable', 'in:active,inactive'], 'activity' => ['nullable', 'in:recent,offline']]);
+        $query = User::with('roles');
+        TableSearch::apply($query, $filters['search'] ?? '', ['name', 'email']);
+        if (! empty($filters['role'])) {
+            $query->role($filters['role']);
+        }
+        if (! empty($filters['status'])) {
+            $query->where('is_active', $filters['status'] === 'active');
+        }
+        if (($filters['activity'] ?? '') === 'recent') {
+            $query->where('is_active', true)->where('last_active_at', '>', now()->subMinutes(5));
+        }
+        if (($filters['activity'] ?? '') === 'offline') {
+            $query->where(fn ($query) => $query->where('is_active', false)->orWhereNull('last_active_at')->orWhere('last_active_at', '<=', now()->subMinutes(5)));
+        }
+
+        return view('staff.index', ['users' => $query->orderBy('name')->orderBy('id')->scrollPaginate()]);
     }
 
     public function create()

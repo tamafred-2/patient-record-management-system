@@ -23,7 +23,7 @@ class LaboratoryController extends Controller
         $date = $data['date'] ?? now('Asia/Manila')->toDateString();
         $search = trim($data['search'] ?? '');
         $record = $data['record'] ?? 'all';
-        $visits = Visit::with(['patient', 'service'])->withCount('laboratoryRecords')->whereHas('patient')->when($record === 'with_records', fn ($query) => $query->whereHas('laboratoryRecords'))->when(! $allDates, fn ($query) => $query->whereDate('visit_date', $date))->searchPatientOrQueue($search)->priorityFirst()->scrollPaginate()->withQueryString();
+        $visits = Visit::forLaboratory()->with(['patient', 'service'])->withCount('laboratoryRecords')->whereHas('patient')->when($record === 'with_records', fn ($query) => $query->whereHas('laboratoryRecords'))->when(! $allDates, fn ($query) => $query->whereDate('visit_date', $date))->searchPatientOrQueue($search)->priorityFirst()->scrollPaginate()->withQueryString();
 
         return view('laboratory.index', compact('allDates', 'search', 'date', 'visits', 'record'));
     }
@@ -31,7 +31,7 @@ class LaboratoryController extends Controller
     public function show(Patient $patient, string $visit)
     {
         Gate::authorize('laboratory.view');
-        $visit = $patient->visits()->with('service')->findOrFail($visit);
+        $visit = $patient->visits()->forLaboratory()->with('service')->findOrFail($visit);
         $records = $visit->laboratoryRecords()->with(['authorizingDoctor', 'requester', 'followupAuthorization.doctor', 'nurseAuthorization'])->latest('id')->scrollPaginate();
 
         return view('laboratory.show', compact('patient', 'visit', 'records'));
@@ -40,7 +40,7 @@ class LaboratoryController extends Controller
     public function edit(Patient $patient, string $visit, string $record)
     {
         Gate::authorize('laboratory.view');
-        $visit = $patient->visits()->findOrFail($visit);
+        $visit = $patient->visits()->forLaboratory()->findOrFail($visit);
         $record = $visit->laboratoryRecords()->findOrFail($record);
 
         return view('laboratory.edit', compact('patient', 'visit', 'record'));
@@ -50,7 +50,7 @@ class LaboratoryController extends Controller
     {
         Gate::authorize('laboratory.view');
         Gate::authorize('laboratory.record');
-        $visit = $patient->visits()->findOrFail($visit);
+        $visit = $patient->visits()->forLaboratory()->findOrFail($visit);
         $existing = $record === null ? null : $visit->laboratoryRecords()->findOrFail($record);
         $tests = array_merge(...array_values(config('laboratory.tests')));
         if ($existing && ! in_array($existing->test_name, $tests, true)) {
@@ -95,7 +95,7 @@ class LaboratoryController extends Controller
         }
         $data = $request->validate($rules);
         DB::transaction(function () use ($request, $patient, $visit, $record, $data) {
-            $visit = $patient->visits()->whereKey($visit->id)->lockForUpdate()->firstOrFail();
+            $visit = $patient->visits()->forLaboratory()->whereKey($visit->id)->lockForUpdate()->firstOrFail();
             if ($visit->status !== 'OPEN') {
                 throw ValidationException::withMessages(['visit' => 'Only open visits can have laboratory records changed.']);
             }

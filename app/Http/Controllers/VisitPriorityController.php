@@ -16,7 +16,11 @@ class VisitPriorityController extends Controller
     {
         Gate::authorize('visits.prioritize');
         $visit = $patient->visits()->findOrFail($visit);
-        $data = $request->validate(Visit::priorityRules() + [
+        $senior = $patient->isSeniorOn($visit->visit_date->toDateString());
+        if ($senior && $request->input('priority') === 'PRIORITY' && ! $request->filled('priority_reason')) {
+            $request->merge(['priority_reason' => 'SENIOR']);
+        }
+        $data = $request->validate(Visit::priorityRules($senior) + [
             'priority_rank' => ['prohibited'], 'patient_id' => ['prohibited'], 'visit_id' => ['prohibited'],
         ]);
 

@@ -4,13 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\LaboratoryRecord;
 use App\Models\MidwifeCareRecord;
-use App\Models\NurseAuthorization;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\Service;
 use App\Models\VaccinationRecord;
 use App\Models\Visit;
-use App\Support\FollowupAccess;
 use App\Support\FollowUpReminders;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -141,11 +139,8 @@ class DashboardController extends Controller
         FollowUpReminders::dispatchDue();
         $followUps = Gate::allows('viewAny', Visit::class) || Gate::allows('consultations.view')
             ? FollowUpReminders::outstanding()->with('followUpSetter')->whereDate('follow_up_on', '<=', now('Asia/Manila')->addDays(7)->toDateString())->orderBy('follow_up_on')->limit(30)->get() : collect();
-        $nurse = auth()->user();
-        $nurseOrdering = FollowupAccess::nurse($nurse)
-            ? Visit::whereHas('patient')->orderableBy($nurse, (bool) NurseAuthorization::activeFor($nurse)?->usable())->count() : 0;
 
-        return view('dashboard', compact('nurseOrdering', 'followUps', 'summaryCards', 'today', 'todayVisits', 'todayVisitsTotal', 'nextVisitsUrl', 'serviceId', 'todayPharmacy', 'todayVaccinations', 'todayMidwifeCare', 'search', 'todayAssessments', 'todayLaboratory', 'departmentBatches', 'departmentTotals', 'departmentNext'));
+        return view('dashboard', compact('followUps', 'summaryCards', 'today', 'todayVisits', 'todayVisitsTotal', 'nextVisitsUrl', 'serviceId', 'todayPharmacy', 'todayVaccinations', 'todayMidwifeCare', 'search', 'todayAssessments', 'todayLaboratory', 'departmentBatches', 'departmentTotals', 'departmentNext'));
     }
 
     private function visitQuery(string $search, ?int $serviceId, bool $doctorList = true)
@@ -175,6 +170,7 @@ class DashboardController extends Controller
 
         return match ($section) {
             'assessments' => $query->with('pendingAssessmentRequest'),
+            'laboratory' => $query->forLaboratory(),
             'pharmacy' => $query->with('prescription')->whereHas('prescription', fn ($prescription) => $prescription->where('status', 'ISSUED')),
             'midwife' => $query->midwifeCareVisits()->withCount('midwifeCareRecords'),
             'vaccinations' => $query->vaccinationVisits()->withCount('vaccinationRecords'),

@@ -7,6 +7,7 @@ use App\Models\Service;
 use App\Models\User;
 use App\Models\Visit;
 use App\Services\QueueNumbers;
+use App\Support\RegistrationAlerts;
 use App\Support\WorkflowAlerts;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -69,7 +70,12 @@ class VisitController extends Controller
     public function store(Request $request, Patient $patient)
     {
         Gate::authorize('create', [Visit::class, $patient]);
-        $request->mergeIfMissing(['priority' => 'REGULAR']);
+        $date = $request->validate(['visit_date' => ['required', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()]])['visit_date'];
+        $senior = $patient->isSeniorOn($date);
+        $request->mergeIfMissing(['priority' => $senior ? 'PRIORITY' : 'REGULAR']);
+        if ($senior && $request->input('priority') === 'PRIORITY' && ! $request->filled('priority_reason')) {
+            $request->merge(['priority_reason' => 'SENIOR']);
+        }
         $data = $request->validate([
             'service_id' => ['required', 'integer', Rule::exists('services', 'id')->where('is_active', true)->whereNull('deleted_at')],
             'visit_date' => ['required', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()],
@@ -77,7 +83,7 @@ class VisitController extends Controller
             'patient_id' => ['prohibited'], 'visit_number' => ['prohibited'],
             'created_by' => ['prohibited'], 'status' => ['prohibited'], 'completed_at' => ['prohibited'], 'completed_by' => ['prohibited'], 'completion_remarks' => ['prohibited'],
             'priority_rank' => ['prohibited'],
-        ] + Visit::priorityRules());
+        ] + Visit::priorityRules($senior));
         if ($data['priority'] !== 'REGULAR') {
             Gate::authorize('visits.prioritize');
         }
@@ -118,6 +124,7 @@ class VisitController extends Controller
             activity('visits')->causedBy($request->user())->performedOn($visit)
                 ->withProperties(['patient_id' => $patient->id, 'service_id' => $service->id, 'status' => 'OPEN', 'priority' => $visit->priority, 'priority_reason' => $visit->priority_reason])->log('visit.created');
             DB::table('queue_reservations')->where('id', $reservation->id)->update(['visit_id' => $visit->id]);
+            RegistrationAlerts::send($patient, $request->user(), $visit);
             if ($visit->priority === 'EMERGENCY') {
                 WorkflowAlerts::emergency($visit, $request->user());
             } else {

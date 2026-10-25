@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Service;
 use App\Models\Visit;
+use App\Support\TableSearch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -11,9 +12,15 @@ use Illuminate\Validation\ValidationException;
 
 class ServiceController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $services = Service::orderByDesc('is_active')->orderBy('name')->orderBy('id')->get();
+        $filters = $request->validate(['search' => ['nullable', 'string', 'max:100'], 'status' => ['nullable', 'in:active,inactive']]);
+        $query = Service::query();
+        TableSearch::apply($query, $filters['search'] ?? '', ['name', 'code', 'description']);
+        if (! empty($filters['status'])) {
+            $query->where('is_active', $filters['status'] === 'active');
+        }
+        $services = $query->orderByDesc('is_active')->orderBy('name')->orderBy('id')->get();
         $services = $services->reject(fn (Service $service) => $service->seed_key === 'OTHER')
             ->concat($services->filter(fn (Service $service) => $service->seed_key === 'OTHER'))
             ->values();

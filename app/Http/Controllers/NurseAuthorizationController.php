@@ -17,6 +17,7 @@ class NurseAuthorizationController extends Controller
     public function index(Request $request)
     {
         abort_unless(FollowupAccess::doctor($request->user()), 403);
+        $filters = $request->validate(['search' => ['nullable', 'string', 'max:100'], 'ordering' => ['nullable', 'in:on,off,unusable'], 'grants' => ['nullable', 'in:with,without']]);
         $active = NurseAuthorization::active()->with(['doctor'])->get()->keyBy('nurse_id');
         // Eligible nurses, plus anyone still holding an active authorization so a doctor can always see and turn it off.
         $nurses = User::whereIn('id', $active->keys())->orWhere(fn ($query) => $query->role('Nurse')->where('is_active', true))->orderBy('name')->get()
@@ -24,6 +25,30 @@ class NurseAuthorizationController extends Controller
 
         $olderGrants = FollowupAuthorization::whereNull('used_at')->whereNull('revoked_at')->whereIn('nurse_id', $nurses->pluck('id'))
             ->selectRaw('nurse_id, count(*) as total')->groupBy('nurse_id')->pluck('total', 'nurse_id');
+
+        $terms = preg_split('/\s+/u', mb_strtolower(trim($filters['search'] ?? '')), -1, PREG_SPLIT_NO_EMPTY);
+        $nurses = $nurses->filter(function (User $nurse) use ($filters, $terms, $active, $olderGrants, $request) {
+            $entry = $active->get($nurse->id);
+            $usable = $entry && $entry->usable() && FollowupAccess::nurse($nurse) && ! $nurse->is($request->user());
+            if (($filters['ordering'] ?? '') === 'on' && ! $entry) {
+                return false;
+            }
+            if (($filters['ordering'] ?? '') === 'off' && $entry) {
+                return false;
+            }
+            if (($filters['ordering'] ?? '') === 'unusable' && (! $entry || $usable)) {
+                return false;
+            }
+            if (($filters['grants'] ?? '') === 'with' && ! $olderGrants->get($nurse->id)) {
+                return false;
+            }
+            if (($filters['grants'] ?? '') === 'without' && $olderGrants->get($nurse->id)) {
+                return false;
+            }
+            $text = mb_strtolower($nurse->name.' '.$nurse->email.' '.$entry?->doctor?->name.' '.$entry?->allowedTestsLabel());
+
+            return collect($terms)->every(fn ($term) => str_contains($text, $term));
+        })->values();
 
         return view('nurse-authorizations.index', compact('nurses', 'active', 'olderGrants'));
     }
