@@ -107,6 +107,60 @@ class DispensingTest extends TestCase
         $this->assertDatabaseCount('dispensings', 1);
     }
 
+    public function test_substitute_buy_outside_and_declined_outcomes_close_remaining_quantities(): void
+    {
+        $this->preparePrescription();
+        $rx = Prescription::firstOrFail();
+        [$a, $b] = [$rx->items[0]->id, $rx->items[1]->id];
+        $base = ['lock_version' => 2, 'confirm' => 1, 'quantities' => [$a => '0', $b => '0']];
+        $invalid = [
+            ['released_as' => [$a => 'Generic example 500 mg']],
+            ['quantities' => [$a => '6', $b => '0'], 'outcomes' => [$a => 'BUY_OUTSIDE']],
+            ['outcome_notes' => [$a => 'Out of stock']],
+            ['outcomes' => [$a => 'RETURNED']],
+            ['released_as' => [$a => str_repeat('x', 151)]],
+            [],
+        ];
+        foreach ($invalid as $extra) {
+            $this->post($this->pharmacyUrl(), array_replace($base, $extra))->assertSessionHasErrors();
+        }
+        $this->assertDatabaseCount('dispensings', 0);
+
+        // Medicine A: 2 released as a substitute, the remaining 4 bought outside. Medicine B: declined.
+        $this->post($this->pharmacyUrl(), array_replace($base, [
+            'quantities' => [$a => '2', $b => '0'],
+            'released_as' => [$a => 'Generic example 500 mg'],
+            'outcomes' => [$a => 'BUY_OUTSIDE', $b => 'DECLINED'],
+            'outcome_notes' => [$a => 'Out of stock at RHU', $b => ''],
+        ]))->assertSessionHasNoErrors()->assertSessionHas('status', 'Medicine release recorded.');
+        $this->assertDatabaseHas('dispensing_items', ['prescription_item_id' => $a, 'quantity_dispensed' => '2.00', 'released_as' => 'Generic example 500 mg', 'remainder_outcome' => 'BUY_OUTSIDE', 'quantity_closed' => '4.00', 'outcome_note' => 'Out of stock at RHU']);
+        $this->assertDatabaseHas('dispensing_items', ['prescription_item_id' => $b, 'quantity_dispensed' => '0.00', 'remainder_outcome' => 'DECLINED', 'quantity_closed' => '2.00']);
+        $this->assertSame('Fictional medicine A', $rx->fresh()->items[0]->medicine_name);
+        $this->get($this->pharmacyUrl())->assertOk()
+            ->assertSee('Pharmacy complete: some medicines not released here')
+            ->assertSee('as Generic example 500 mg')->assertSee('Patient will buy outside: 4.00')->assertSee('Patient declined: 2.00')
+            ->assertSee('(Out of stock at RHU)', false)->assertDontSee('Record pharmacy entry');
+        $this->assertSame(1, Prescription::has('releasedDispensings')->count());
+        $this->assertSame(1, Prescription::withUnreleasedOutcome('DECLINED')->count());
+
+        // Nothing is waiting for release, so completion no longer needs an explanation.
+        $this->actingAs($this->officer)->get(route('visits.completion', [$this->patient, $this->visit]))->assertOk()
+            ->assertSee('Issued: pharmacy complete; some medicines to buy outside or declined')->assertDontSee('Some medicines have not been released');
+
+        // Voiding the entry reopens both the released and the closed quantities.
+        $pharmacist = User::role('Pharmacist')->latest('id')->firstOrFail();
+        $release = $rx->dispensings()->firstOrFail();
+        $this->actingAs($pharmacist)->post(route('pharmacy.void', [$this->patient, $this->visit, $release]), ['confirm' => 1, 'reason' => 'Fictional wrong entry', 'lock_version' => 3])->assertSessionHasNoErrors();
+        $this->get($this->pharmacyUrl())->assertSee('Not dispensed')->assertSee('Record pharmacy entry');
+
+        // An outcome-only entry is recorded but does not count as a release.
+        $this->post($this->pharmacyUrl(), array_replace($base, ['lock_version' => 4, 'outcomes' => [$b => 'BUY_OUTSIDE']]))
+            ->assertSessionHasNoErrors()->assertSessionHas('status', 'Pharmacy outcome recorded. No medicine was released in this entry.');
+        $this->assertSame(0, Prescription::has('releasedDispensings')->count());
+        $this->assertSame(1, Prescription::has('activeDispensings')->count());
+        $this->assertSame(['visit_id', 'prescription_id', 'version'], array_keys(Activity::where('description', 'dispensing.recorded')->latest('id')->firstOrFail()->properties->all()));
+    }
+
     public function test_role_ownership_and_clinical_access_boundaries(): void
     {
         $this->preparePrescription();

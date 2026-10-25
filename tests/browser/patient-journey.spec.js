@@ -57,7 +57,7 @@ test('one fictional patient passes through all implemented operational roles', a
 
     page = await asRole('doctor');
     await page.goto('/consultations/' + scope);
-    await expect(page.getByText('With record', { exact: true })).toBeVisible();
+    await expect(page.getByTitle(/^PhilHealth: With record/)).toBeVisible();
     await page.getByRole('link', { name: 'Open Digital ITR' }).click();
     await page.getByRole('button', { name: 'Edit notes', exact: true }).click();
     await page.getByLabel('Assessment', { exact: true }).fill('Fictional journey assessment only.');
@@ -171,10 +171,10 @@ test('one fictional patient passes through all implemented operational roles', a
     for (const state of ['Partially dispensed', 'Fully dispensed']) {
       await page.getByLabel('Quantity released now', { exact: true }).fill('1');
       await page.getByRole('checkbox').check();
-      await page.getByRole('button', { name: 'Record release', exact: true }).click();
+      await page.getByRole('button', { name: 'Record pharmacy entry', exact: true }).click();
       await expect(page.getByText(state, { exact: true })).toBeVisible();
     }
-    await expect(page.getByRole('button', { name: 'Record release', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Record pharmacy entry', exact: true })).toHaveCount(0);
 
     page = await asRole('information');
     await page.goto('/patients/' + scope);
