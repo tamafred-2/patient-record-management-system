@@ -63,6 +63,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/certificates/{patient}/visits/{visit}', [MedicalCertificateController::class, 'index'])->name('certificates.index');
     Route::post('/certificates/{patient}/visits/{visit}', [MedicalCertificateController::class, 'store'])->name('certificates.store');
     Route::get('/certificates/{patient}/visits/{visit}/{certificate}/print', [MedicalCertificateController::class, 'print'])->name('certificates.print');
+    Route::get('/certificates/{patient}/visits/{visit}/{certificate}/pdf', [MedicalCertificateController::class, 'pdf'])->name('certificates.pdf');
     Route::get('/password/change', [PasswordController::class, 'edit'])->name('password.edit');
     Route::put('/password/change', [PasswordController::class, 'update'])->middleware('throttle:6,1,password-change')->name('password.update');
     Route::get('/analytics', AnalyticsController::class)->name('analytics.index');
@@ -94,10 +95,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/laboratory/{patient}/visits/{visit}/records/{record}/external-slip', [PrintController::class, 'externalLab'])->name('prints.external-lab');
     Route::get('/prescriptions/{patient}/visits/{visit}/print', [PrintController::class, 'prescription'])->name('prints.prescription');
     Route::get('/supporting/{patient}/visits/{visit}/records/{record}/print', [PrintController::class, 'referral'])->name('prints.referral');
+    Route::get('/laboratory/{patient}/visits/{visit}/records/{record}/print', [PrintController::class, 'laboratoryResult'])->name('prints.laboratory-result');
     Route::put('/laboratory/{patient}/visits/{visit}/records/{record}', [LaboratoryController::class, 'save'])->name('laboratory.update');
     Route::get('/pharmacy', [DispensingController::class, 'index'])->name('pharmacy.index');
     Route::get('/pharmacy/{patient}/visits/{visit}', [DispensingController::class, 'show'])->name('pharmacy.show');
     Route::post('/pharmacy/{patient}/visits/{visit}', [DispensingController::class, 'store'])->name('pharmacy.store');
+    Route::post('/pharmacy/{patient}/visits/{visit}/releases/{dispensing}/void', [DispensingController::class, 'void'])->name('pharmacy.void');
     Route::get('/prescriptions/{patient}/visits/{visit}', [PrescriptionController::class, 'show'])->name('prescriptions.show');
     Route::put('/prescriptions/{patient}/visits/{visit}', [PrescriptionController::class, 'save'])->name('prescriptions.save');
     Route::post('/prescriptions/{patient}/visits/{visit}/issue', [PrescriptionController::class, 'issue'])->name('prescriptions.issue');
@@ -115,6 +118,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/assessments/{patient}/visits/{visit}', [AssessmentController::class, 'save'])->name('assessments.save');
     Route::get('/patients/{patient}/visits/{visit}/completion', [VisitCompletionController::class, 'show'])->name('visits.completion');
     Route::post('/patients/{patient}/visits/{visit}/completion', [VisitCompletionController::class, 'store'])->name('visits.complete');
+    Route::post('/patients/{patient}/visits/{visit}/reopen', [VisitCompletionController::class, 'reopen'])->name('visits.reopen');
     Route::put('/patients/{patient}/visits/{visit}/priority', [VisitPriorityController::class, 'update'])->middleware('throttle:30,1,visit-priority')->name('visits.priority');
     Route::get('/visits', [VisitController::class, 'index'])->name('visits.index');
     Route::get('/visit-monitor/{patient}/visits/{visit}', [VisitController::class, 'monitor'])->middleware('can:visits.monitor')->name('visits.monitor');
@@ -139,5 +143,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/staff/{user}/edit', [StaffController::class, 'edit'])->name('staff.edit');
         Route::post('/staff/{user}/reset-password', [PasswordController::class, 'reset'])->middleware('throttle:6,1,staff-password-reset')->name('staff.password.reset');
         Route::patch('/staff/{user}', [StaffController::class, 'update'])->name('staff.update');
+        Route::post('/staff/{user}/retire', [StaffController::class, 'retire'])->name('staff.retire');
     });
 });

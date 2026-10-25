@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\MedicalCertificate;
 use App\Models\Patient;
 use App\Models\Visit;
+use App\Services\ExportSafety;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -70,7 +72,7 @@ class MedicalCertificateController extends Controller
 
                 return $previous;
             }
-            if ($visit->status !== 'OPEN') {
+            if (! $visit->isOpen()) {
                 throw ValidationException::withMessages(['visit' => 'Only open visits can receive a new certificate. Existing certificates can still be reprinted.']);
             }
             $record = new MedicalCertificate;
@@ -110,14 +112,36 @@ class MedicalCertificateController extends Controller
 
     public function print(Request $request, Patient $patient, string $visit, string $certificate)
     {
-        Gate::authorize('certificates.print');
-        Gate::authorize('consultations.view');
-        $visit = $patient->visits()->findOrFail($visit);
-        $certificate = $visit->medicalCertificates()->findOrFail($certificate);
+        [$visit, $certificate] = $this->printable($patient, $visit, $certificate);
         activity('certificates')->causedBy($request->user())->performedOn($certificate)
             ->withProperties(['visit_id' => $visit->id])->log('certificate.print_viewed');
 
         return response()->view('certificates.print', ['patient' => $patient, 'visit' => $visit, 'certificate' => $certificate, 'content' => $certificate->content])
             ->header('Cache-Control', 'no-store, private');
+    }
+
+    public function pdf(Request $request, Patient $patient, string $visit, string $certificate, ExportSafety $safety)
+    {
+        [$visit, $certificate] = $this->printable($patient, $visit, $certificate);
+
+        return $safety->run($request->user()->id, function () use ($request, $patient, $visit, $certificate, $safety) {
+            $html = view('certificates.pdf', ['patient' => $patient, 'visit' => $visit, 'certificate' => $certificate, 'content' => $certificate->content])->render();
+            $safety->checkHtml($html);
+            $response = Pdf::loadHTML($html)->setPaper('a4', 'landscape')->setOption('isRemoteEnabled', false)
+                ->download('medical-certificate-'.$certificate->id.'.pdf')->header('Cache-Control', 'no-store, private');
+            activity('certificates')->causedBy($request->user())->performedOn($certificate)
+                ->withProperties(['visit_id' => $visit->id])->log('certificate.pdf_downloaded');
+
+            return $response;
+        });
+    }
+
+    private function printable(Patient $patient, string $visit, string $certificate): array
+    {
+        Gate::authorize('certificates.print');
+        Gate::authorize('consultations.view');
+        $visit = $patient->visits()->findOrFail($visit);
+
+        return [$visit, $visit->medicalCertificates()->findOrFail($certificate)];
     }
 }
