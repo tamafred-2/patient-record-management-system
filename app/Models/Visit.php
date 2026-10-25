@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\TableSearch;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,10 +19,10 @@ class Visit extends Model
 
     public const PRIORITY_REASONS = ['PWD' => 'Person with disability (PWD)', 'SENIOR' => 'Senior citizen', 'PREGNANT' => 'Pregnant', 'OTHER' => 'Other'];
 
-    public static function priorityRules(): array
+    public static function priorityRules(bool $senior = false): array
     {
         return [
-            'priority' => ['required', 'string', 'in:'.implode(',', array_keys(self::PRIORITY_RANKS))],
+            'priority' => ['required', 'string', 'in:'.($senior ? 'PRIORITY,EMERGENCY' : implode(',', array_keys(self::PRIORITY_RANKS)))],
             'priority_reason' => ['nullable', 'required_if:priority,PRIORITY', 'prohibited_unless:priority,PRIORITY', 'string', 'in:'.implode(',', array_keys(self::PRIORITY_REASONS))],
             'priority_note' => ['nullable', 'required_if:priority_reason,OTHER', 'prohibited_unless:priority_reason,OTHER', 'string', 'max:150'],
         ];
@@ -58,6 +59,38 @@ class Visit extends Model
     public function scopePriorityFirst(Builder $query): Builder
     {
         return $query->orderByDesc('priority_rank')->orderByDesc('id');
+    }
+
+    // Direct laboratory visits and encounters with saved laboratory work only.
+    // Retain historical records even when their original service was different.
+    public function scopeForLaboratory(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $eligible) => $eligible
+            ->whereHas('service', fn (Builder $service) => $service->withTrashed()->where('seed_key', 'LABORATORY'))
+            ->orWhereHas('laboratoryRecords'));
+    }
+
+    public function scopeFilterHistory(Builder $query, array $filters): Builder
+    {
+        if (! empty($filters['search'])) {
+            $query->where(function (Builder $match) use ($filters) {
+                $match->where(fn (Builder $reference) => TableSearch::apply($reference, $filters['search'], ['visit_number', 'queue_reference']))
+                    ->orWhereHas('service', fn (Builder $service) => TableSearch::apply($service, $filters['search'], ['name']));
+            });
+        }
+        if (! empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+        if (! empty($filters['priority'])) {
+            $query->where('priority', $filters['priority']);
+        }
+
+        return $query;
+    }
+
+    public static function historyFilterRules(): array
+    {
+        return ['search' => ['nullable', 'string', 'max:100'], 'status' => ['nullable', 'in:OPEN,COMPLETED'], 'priority' => ['nullable', 'in:REGULAR,PRIORITY,EMERGENCY']];
     }
 
     public function scopeSearchPatientOrQueue(Builder $query, ?string $search): Builder
