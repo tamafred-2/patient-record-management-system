@@ -1,5 +1,5 @@
 <x-layout title="Laboratory services">
-    <a href="{{ route('laboratory.index',['date'=>$visit->visit_date->toDateString()]) }}" class="text-emerald-800 underline">Back to laboratory</a>
+    <x-back-link href="{{ route('laboratory.index',['date'=>$visit->visit_date->toDateString()]) }}">Back to laboratory</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">Laboratory services</h1>
     <p class="mt-3 font-medium">{{ $patient->full_name }} &middot; {{ $patient->patient_number }}</p>
     <p class="mt-1 text-sm text-slate-600">{{ $visit->visit_number }} &middot; {{ $visit->visit_date->format('M j, Y') }} &middot; {{ $visit->service->name }} &middot; Queue: {{ $visit->queue_reference ?? 'Not recorded' }}</p>
@@ -12,6 +12,7 @@
                 <p class="mt-2 text-sm">{{ App\Models\LaboratoryRecord::STATUSES[$entry->availability_status] }}</p>
                 @if($entry->availability_status === 'EXTERNAL_ADVISED')<a href="{{ route('prints.external-lab', [$patient, $visit, $entry]) }}" class="text-sm font-semibold text-emerald-800 underline">Print external laboratory request</a>@endif
                 @if($entry->availability_status === 'PERFORMED_RHU')
+                    @if($entry->result_rows || filled($entry->result))<a href="{{ route('prints.laboratory-result', [$patient, $visit, $entry]) }}" class="mt-3 inline-block text-sm font-semibold text-emerald-800 underline">Print laboratory result</a>@endif
                     <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
                         <h3 class="font-semibold">Laboratory result</h3>
                         @if($entry->result_rows)
