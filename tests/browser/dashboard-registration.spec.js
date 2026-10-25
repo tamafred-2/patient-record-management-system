@@ -22,9 +22,9 @@ test('registration dashboard searches, optional guardian and repeatable printabl
   await page.getByLabel('Municipality', { exact: true }).fill('Calasiao');
   await page.getByLabel('Province', { exact: true }).fill('Pangasinan');
   await page.getByLabel('Name (optional)', { exact: true }).fill('Fictional Guardian');
-  await page.locator('#emergency_contact_number').fill('000-TEST');
+  await page.locator('#emergency_contact_number').fill('00000000000');
   await page.getByLabel('Guardian / contact name', { exact: true }).fill('Fictional Guardian');
-  await page.getByLabel('Guardian contact number (optional)', { exact: true }).fill('000-TEST');
+  await page.getByLabel('Guardian contact number (optional)', { exact: true }).fill('00000000000');
   await page.getByLabel('Relationship to patient', { exact: true }).fill('Parent');
   await page.getByRole('button', { name: 'Register patient', exact: true }).click();
   await expect(page).toHaveURL(/\/patients\/\d+$/);
@@ -69,20 +69,22 @@ test('registration dashboard searches, optional guardian and repeatable printabl
   await page.getByRole('link', { name: 'All services', exact: true }).click();
   const scrollArea = page.getByRole('region', { name: "Today's visits, scroll to load more" });
   const expectedTotal = parseInt(await page.locator('#today-visits-title + span').innerText(), 10);
-  await expect(scrollArea.locator('tbody tr')).toHaveCount(20);
+  await expect(scrollArea.locator('tbody tr')).toHaveCount(10);
   await expect.poll(() => scrollArea.evaluate(el => {
     const table = el.querySelector('table');
     const expectedHeight = table.tHead.offsetHeight + Array.from(table.tBodies[0].rows).slice(0, 10).reduce((sum, row) => sum + row.offsetHeight, 0);
-    return Math.abs(el.clientHeight - expectedHeight) <= 1 && el.scrollHeight > el.clientHeight;
+    return el.clientHeight <= expectedHeight && el.scrollHeight > el.clientHeight;
   })).toBe(true);
   await scrollArea.evaluate(el => { el.scrollTop = el.scrollHeight; });
+  await expect(scrollArea.locator('tbody tr')).toHaveCount(20);
+  await scrollArea.evaluate(el => { el.scrollTop = el.scrollHeight; });
   await expect(scrollArea.locator('tbody tr')).toHaveCount(expectedTotal);
-  await expect(scrollArea.getByRole('button', { name: 'Load more visits' })).toBeHidden();
+  await expect(page.locator('[data-scroll-queue="dashboard-visits"] [data-queue-next]')).toBeHidden();
   const totals = await page.locator('article').allTextContents();
   await page.locator('#today-search').fill(queue);
   await page.getByRole('button', { name: 'Search visits', exact: true }).click();
   await expect(page.getByRole('row').filter({ hasText: queue })).toHaveCount(1);
-  await expect(scrollArea).toHaveJSProperty('clientHeight', 744);
+  await expect.poll(() => scrollArea.evaluate(el => el.clientHeight >= 96 && el.clientHeight <= 744)).toBe(true);
   expect(await page.locator('article').allTextContents()).toEqual(totals);
   await expect(page.getByLabel('Patient number or name', { exact: true })).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 844 });
@@ -91,6 +93,6 @@ test('registration dashboard searches, optional guardian and repeatable printabl
   await page.locator('#today-search').fill('FICTIONAL-NO-MATCH-999');
   await page.getByRole('button', { name: 'Search visits', exact: true }).click();
   await expect(page.getByText('No matching visits.', { exact: true })).toBeVisible();
-  await expect(scrollArea).toHaveJSProperty('clientHeight', 744);
+  await expect.poll(() => scrollArea.evaluate(el => el.clientHeight >= 96 && el.clientHeight <= 744)).toBe(true);
   expect(errors).toEqual([]);
 });

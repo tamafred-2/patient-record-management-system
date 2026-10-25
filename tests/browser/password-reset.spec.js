@@ -9,10 +9,18 @@ test('admin reset revokes sessions and forces private password replacement', asy
     await target.getByLabel('Password', { exact: true }).fill(password);
     await target.getByRole('button', { name: 'Sign in', exact: true }).click();
   }
-  async function change(target, current, replacement) {
-    await target.getByLabel('Current password', { exact: true }).fill(current);
-    await target.getByLabel('New password', { exact: true }).fill(replacement);
-    await target.getByLabel('Confirm new password', { exact: true }).fill(replacement);
+  // Forced changes follow sign-in with the temporary password, so it is not asked for again.
+  async function change(target, replacement) {
+    await expect(target.getByLabel('Current password', { exact: true })).toHaveCount(0);
+    const fresh = target.getByLabel('New password', { exact: true });
+    await fresh.fill(replacement);
+    await target.getByRole('button', { name: 'Show new password' }).click();
+    await expect(fresh).toHaveAttribute('type', 'text');
+    const confirm = target.getByLabel('Confirm new password', { exact: true });
+    await confirm.fill(replacement + 'x');
+    await expect(target.locator('#password-match-status')).toHaveText('Passwords do not match.');
+    await confirm.fill(replacement);
+    await expect(target.locator('#password-match-status')).toHaveText('Passwords match.');
     await target.getByRole('button', { name: 'Change password', exact: true }).click();
     await expect(target).toHaveURL(/dashboard/);
   }
@@ -24,7 +32,7 @@ test('admin reset revokes sessions and forces private password replacement', asy
     await page.getByLabel('Email address').fill('password-browser@rhu.test');
     await page.locator('input[name="password"]').fill('FirstTemporary123!');
     await page.getByLabel('Confirm password', { exact: true }).fill('FirstTemporary123!');
-    await page.getByLabel('Nurse', { exact: true }).check();
+    await page.getByLabel('Primary role', { exact: true }).selectOption('Nurse');
     await page.getByRole('button', { name: 'Create account' }).click();
     await expect(page).toHaveURL(/\/staff$/);
     const row = page.getByRole('row').filter({ hasText: 'password-browser@rhu.test' });
@@ -33,7 +41,7 @@ test('admin reset revokes sessions and forces private password replacement', asy
     const staff = await first.newPage();
     await login(staff, 'password-browser@rhu.test', 'FirstTemporary123!');
     await expect(staff).toHaveURL(/password\/change/);
-    await change(staff, 'FirstTemporary123!', 'FirstPrivatePassword123!');
+    await change(staff, 'FirstPrivatePassword123!');
     const second = await browser.newContext({ baseURL }); contexts.push(second);
     const oldSession = await second.newPage();
     await login(oldSession, 'password-browser@rhu.test', 'FirstPrivatePassword123!');
@@ -67,7 +75,7 @@ test('admin reset revokes sessions and forces private password replacement', asy
     await staff.goto('/analytics');
     await expect(staff).toHaveURL(/password\/change/);
     await staff.screenshot({ path: 'storage/framework/testing/required-password-change.png', fullPage: true });
-    await change(staff, temporary, 'FinalPrivatePassword123!');
+    await change(staff, 'FinalPrivatePassword123!');
     await staff.goto('/analytics');
     await expect(staff.getByRole('heading', { name: 'My department analytics' })).toBeVisible();
     await login(oldSession, 'password-browser@rhu.test', temporary);

@@ -36,7 +36,7 @@ class AnalyticsTest extends TestCase
         $this->assertSame(1, $panels['Patient trends']['Patients seen before period']);
         $this->assertSame(7, $panels['Patient trends']['First recorded visit in period']);
         $this->assertSame([$today => 8], $response->viewData('trend'));
-        $this->assertSame(1, $panels['Laboratory activity']['Performed at RHU']);
+        $this->assertSame(1, $panels['Laboratory activity']['Completed at RHU']);
         $this->assertSame(1, $panels['Laboratory activity']['External laboratory advised']);
         $this->assertSame(1, $panels['Prescription activity']['Awaiting first release']);
         $this->assertSame(3, $panels['Prescription activity']['With at least one release']);
@@ -46,7 +46,7 @@ class AnalyticsTest extends TestCase
         Patient::where('patient_number', 'EXAMPLE-PATIENT-LABORATORY')->firstOrFail()->delete();
         $response = $this->get('/analytics?from='.$today.'&to='.$today)->assertOk();
         $this->assertSame(7, $response->viewData('panels')['Patient trends']['Visits']);
-        $this->assertSame(0, $response->viewData('panels')['Laboratory activity']['Performed at RHU']);
+        $this->assertSame(0, $response->viewData('panels')['Laboratory activity']['Completed at RHU']);
     }
 
     public function test_departments_cannot_request_other_sections_and_combined_roles_are_additive(): void

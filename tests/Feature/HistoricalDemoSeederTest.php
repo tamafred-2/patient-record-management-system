@@ -57,7 +57,7 @@ class HistoricalDemoSeederTest extends TestCase
         $this->assertSame('Edited example', $patient->fresh()->first_name);
         $this->withoutVite();
         $this->actingAs(User::where('email', 'admin@rhu.test')->firstOrFail())
-            ->get('/analytics?from=2026-01-05&to=2026-09-28')
+            ->get('/analytics?from=2026-01-05&to=2026-09-25')
             ->assertOk()->assertSee('Most recorded diagnoses chart')->assertSee('hypertension');
     }
 

@@ -76,6 +76,11 @@ class CustomReportTest extends TestCase
         foreach (array_chunk($records, 100) as $chunk) {
             Visit::insert($chunk);
         }
+        $this->get('/reports?from=2026-09-26&to=2026-09-26&format=register')->assertOk()
+            ->assertSee('This register is too large for one download.')
+            ->assertSee('Download summary only')->assertSee('disabled aria-describedby="download-limit"', false);
+        $this->get('/reports?from=2026-09-26&to=2026-09-26&format=summary')->assertOk()
+            ->assertDontSee('This register is too large for one download.');
         $this->from('/reports')->get('/reports/pdf?from=2026-09-26&to=2026-09-26&format=register')->assertSessionHasErrors('format');
         $this->get('/reports/pdf?from=2026-09-26&to=2026-09-26&format=summary')->assertOk()->assertHeader('content-type', 'application/pdf');
     }
@@ -91,7 +96,7 @@ class CustomReportTest extends TestCase
         }
         $params = ['from' => '2026-09-26', 'to' => '2026-09-26', 'format' => 'both', 'group' => 'service'];
         $preview = $this->get('/reports?'.http_build_query($params))->assertOk();
-        $this->assertSame(25, $preview->viewData('register')->count());
+        $this->assertSame(10, $preview->viewData('register')->count());
         $this->assertSame(66, $preview->viewData('register')->total());
         $pdf = $this->get('/reports/pdf?'.http_build_query($params))->assertOk()->assertHeader('content-type', 'application/pdf');
         $this->assertStringStartsWith('%PDF', $pdf->getContent());

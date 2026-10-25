@@ -35,7 +35,7 @@ class StaffAccessTest extends TestCase
 
     private function accountData(): array
     {
-        return ['name' => 'Fictional Staff', 'email' => 'new.staff@example.test', 'password' => 'Test123!', 'password_confirmation' => 'Test123!', 'roles' => ['Nurse', 'Midwife']];
+        return ['name' => 'Fictional Staff', 'email' => 'new.staff@example.test', 'password' => 'Test123!', 'password_confirmation' => 'Test123!', 'primary_role' => 'Doctor / Medical Officer', 'roles' => ['Doctor / Medical Officer', 'Nurse']];
     }
 
     public function test_guest_can_view_login_but_cannot_access_staff_routes(): void
@@ -150,7 +150,7 @@ class StaffAccessTest extends TestCase
         $this->post('/staff', [...$data, 'is_active' => false])->assertRedirect('/staff');
         $created = User::where('email', $data['email'])->firstOrFail();
         $this->assertTrue($created->is_active);
-        $this->assertTrue($created->hasAllRoles(['Nurse', 'Midwife']));
+        $this->assertTrue($created->hasAllRoles(['Doctor / Medical Officer', 'Nurse']));
         $this->assertTrue(Hash::check($data['password'], $created->password));
         $audit = Activity::where('description', 'staff.created')->firstOrFail();
         $this->assertEquals($admin->id, $audit->causer_id);
@@ -164,10 +164,10 @@ class StaffAccessTest extends TestCase
         $admin = $this->staff('System Admin');
         $target = $this->staff();
         $this->actingAs($admin)->get(route('staff.edit', $target))->assertOk();
-        $this->patch(route('staff.update', $target), ['is_active' => false, 'roles' => ['Nurse']])->assertRedirect('/staff');
+        $this->patch(route('staff.update', $target), ['is_active' => false, 'roles' => ['Information Staff']])->assertRedirect('/staff');
         $this->assertFalse($target->fresh()->is_active);
-        $this->assertTrue($target->fresh()->hasRole('Nurse'));
-        $this->patch(route('staff.update', $target), ['is_active' => true, 'roles' => ['Nurse']])->assertRedirect('/staff');
+        $this->assertTrue($target->fresh()->hasRole('Information Staff'));
+        $this->patch(route('staff.update', $target), ['is_active' => true, 'roles' => ['Information Staff']])->assertRedirect('/staff');
         $this->assertTrue($target->fresh()->is_active);
         $this->assertDatabaseCount('activity_log', 2);
     }
@@ -176,17 +176,17 @@ class StaffAccessTest extends TestCase
     {
         $admin = $this->staff('System Admin');
         $this->actingAs($admin)->get(route('staff.edit', $admin))->assertOk()->assertSee('Your own account must stay active');
-        $this->patch(route('staff.update', $admin), ['is_active' => true, 'roles' => ['System Admin', 'Nurse']])->assertSessionHasNoErrors()->assertRedirect('/staff');
-        $this->assertTrue($admin->fresh()->hasRole('Nurse'));
+        $this->patch(route('staff.update', $admin), ['is_active' => true, 'roles' => ['System Admin', 'Information Staff']])->assertSessionHasNoErrors()->assertRedirect('/staff');
+        $this->assertTrue($admin->fresh()->hasRole('Information Staff'));
         $audit = Activity::where('description', 'staff.access_updated')->latest('id')->firstOrFail();
         $this->assertEquals($admin->id, $audit->causer_id);
         $this->assertEquals($admin->id, $audit->subject_id);
         $this->get('/staff')->assertOk();
-        $this->patch(route('staff.update', $admin), ['is_active' => false, 'roles' => ['System Admin', 'Nurse']])->assertSessionHasErrors('is_active');
+        $this->patch(route('staff.update', $admin), ['is_active' => false, 'roles' => ['System Admin', 'Information Staff']])->assertSessionHasErrors('is_active');
         $this->patch(route('staff.update', $admin), ['is_active' => true, 'roles' => ['Nurse']])->assertSessionHasErrors('roles');
         $this->assertSame(1, Activity::where('description', 'staff.access_updated')->count());
         $this->patch(route('staff.update', $admin), ['is_active' => true, 'roles' => ['System Admin']])->assertSessionHasNoErrors()->assertRedirect('/staff');
-        $this->assertFalse($admin->fresh()->hasRole('Nurse'));
+        $this->assertFalse($admin->fresh()->hasRole('Information Staff'));
         $this->assertTrue($admin->fresh()->is_active);
         $this->assertTrue($admin->fresh()->hasRole('System Admin'));
     }
@@ -238,7 +238,7 @@ class StaffAccessTest extends TestCase
             'payload' => base64_encode(serialize([])), 'last_activity' => time(),
         ]);
         config(['session.driver' => 'database']);
-        $this->actingAs($admin)->patch(route('staff.update', $target), ['is_active' => false, 'roles' => ['Nurse']])->assertRedirect('/staff');
+        $this->actingAs($admin)->patch(route('staff.update', $target), ['is_active' => false, 'roles' => ['Information Staff']])->assertRedirect('/staff');
         $this->assertDatabaseMissing('sessions', ['id' => 'fictional-session']);
     }
 
@@ -267,5 +267,20 @@ class StaffAccessTest extends TestCase
         $this->seed(DatabaseSeeder::class);
         $this->assertEquals(7, Role::count());
         $this->assertTrue(Role::findByName('System Admin')->hasPermissionTo('users.manage'));
+    }
+
+    public function test_staff_name_rejects_numbers(): void
+    {
+        $admin = $this->staff('System Admin');
+        $this->actingAs($admin)->post('/staff', [...$this->accountData(), 'name' => 'Fictional Staff 123'])
+            ->assertSessionHasErrors(['name' => 'The name must not contain numbers.']);
+    }
+
+    public function test_bootstrap_name_rejects_numbers(): void
+    {
+        $this->artisan('staff:create-admin')->expectsQuestion('Name', 'Admin 123')
+            ->expectsQuestion('Email', 'admin@example.test')
+            ->expectsQuestion('Password (at least 8 characters)', 'Test123!')
+            ->expectsQuestion('Confirm password', 'Test123!')->assertFailed();
     }
 }
