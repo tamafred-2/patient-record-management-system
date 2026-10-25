@@ -45,10 +45,12 @@ class DashboardRegistrationTest extends TestCase
             Visit::forceCreate(['patient_id' => $patient->id, 'service_id' => $service->id, 'created_by' => $user->id, 'visit_number' => 'BATCH-'.$number, 'queue_reference' => 'LOAD-'.$number, 'visit_date' => now('Asia/Manila')->toDateString(), 'status' => 'OPEN']);
         }
         $page = $this->get('/dashboard?service_id='.$service->id)->assertOk();
-        $this->assertCount(20, $page->viewData('todayVisits'));
+        $this->assertCount(10, $page->viewData('todayVisits'));
         $this->assertSame(25, $page->viewData('todayVisitsTotal'));
-        $next = $this->getJson($page->viewData('nextVisitsUrl'))->assertOk()->assertJsonPath('next', null);
-        $this->assertSame(5, substr_count($next->json('html'), 'class="border-t'));
+        $next = $this->getJson($page->viewData('nextVisitsUrl'))->assertOk();
+        $this->assertSame(10, substr_count($next->json('html'), 'class="border-t'));
+        $last = $this->getJson($next->json('next'))->assertOk()->assertJsonPath('next', null);
+        $this->assertSame(5, substr_count($last->json('html'), 'class="border-t'));
         $this->assertStringNotContainsString('BATCH-25', $next->json('html'));
         $this->get('/dashboard?service_id='.Service::where('id', '!=', $service->id)->first()->id)->assertViewHas('todayVisitsTotal', 0);
         $this->getJson('/dashboard/visits?search=LOAD-25')->assertOk()->assertSee('BATCH-25')->assertDontSee('BATCH-24');
@@ -56,14 +58,15 @@ class DashboardRegistrationTest extends TestCase
             $departmentUser = User::factory()->create();
             $departmentUser->assignRole($role);
             $dashboard = $this->actingAs($departmentUser)->get('/dashboard')->assertOk();
-            $this->assertCount(20, $dashboard->viewData('departmentBatches')[$section]);
+            $this->assertCount(10, $dashboard->viewData('departmentBatches')[$section]);
             $this->assertSame(25, $dashboard->viewData('departmentTotals')[$section]);
             if ($role === 'Nurse') {
                 $cards = $dashboard->viewData('summaryCards');
-                $this->assertSame(['Visits today', 'Assessed this month', 'Assessed today', 'Not yet assessed'], array_column($cards, 0));
-                $this->assertSame([25, 0, 0, 25], array_column($cards, 1));
+                $this->assertSame(['Visits today', 'Assessed this month', 'Assessed today', 'Not yet assessed', 'Reassessment requests'], array_column($cards, 0));
+                $this->assertSame([25, 0, 0, 25, 0], array_column($cards, 1));
             }
-            $this->getJson($dashboard->viewData('departmentNext')[$section])->assertOk()->assertJsonPath('next', null)->assertSee('BATCH-1');
+            $batch = $this->getJson($dashboard->viewData('departmentNext')[$section])->assertOk();
+            $this->getJson($batch->json('next'))->assertOk()->assertJsonPath('next', null)->assertSee('BATCH-1');
             $this->getJson('/dashboard/visits?section=pharmacy')->assertForbidden();
         }
         $this->actingAs($user);

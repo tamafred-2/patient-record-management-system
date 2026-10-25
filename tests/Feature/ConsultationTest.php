@@ -7,6 +7,7 @@ use App\Models\Patient;
 use App\Models\Service;
 use App\Models\User;
 use App\Models\Visit;
+use App\Models\VitalSign;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -25,6 +26,9 @@ class ConsultationTest extends TestCase
     {
         $older = $this->visit->replicate();
         $older->forceFill(['visit_number' => 'OLDER-DOCTOR', 'queue_reference' => null, 'visit_date' => '2020-01-01'])->save();
+        foreach ([$this->visit, $older] as $assessedVisit) {
+            VitalSign::forceCreate(['visit_id' => $assessedVisit->id, 'pulse_rate' => 70, 'recorded_by' => $this->officer->id, 'updated_by' => $this->officer->id, 'recorded_at' => now()]);
+        }
         $cards = $this->get('/dashboard')->assertOk()->viewData('summaryCards');
         $this->assertSame(['Visits today', 'ITRs saved', 'Without saved ITR', 'Issued prescriptions'], array_column($cards, 0));
         $this->assertSame([1, 0, 2, 0], array_column($cards, 1));
@@ -60,7 +64,7 @@ class ConsultationTest extends TestCase
 
     public function test_doctor_reviews_visit_and_missing_records(): void
     {
-        $this->get(route('consultations.index'))->assertOk()->assertSee('Fictional Verification');
+        $this->get(route('consultations.index'))->assertOk()->assertDontSee('Fictional Verification');
         $this->get($this->url())->assertOk()->assertSee($this->visit->visit_number)->assertSee('Not recorded')->assertSee('Not checked');
         $this->get(route('consultations.index', ['date' => '2000-01-01']))->assertOk()->assertDontSee('Fictional Verification');
         $this->get(route('consultations.index', ['date' => 'invalid']))->assertSessionHasErrors('date');
@@ -70,7 +74,7 @@ class ConsultationTest extends TestCase
     {
         $nurse = User::factory()->create();
         $nurse->assignRole('Nurse');
-        $this->actingAs($nurse)->put(route('assessments.save', [$this->patient, $this->visit]), ['lock_version' => 0, 'temperature' => 36.75])->assertSessionHasNoErrors();
+        $this->actingAs($nurse)->put(route('assessments.save', [$this->patient, $this->visit]), ['assessment_summary' => 'Fictional nurse observations.', 'lock_version' => 0, 'temperature' => 36.75])->assertSessionHasNoErrors();
         $admin = User::factory()->create();
         $admin->assignRole('System Admin');
         $this->actingAs($admin)->put(route('eligibility.save', [$this->patient, $this->visit]), ['lock_version' => 0, 'philhealth_confirmed' => 1, 'remarks' => '<script>fictional</script>'])->assertSessionHasNoErrors();

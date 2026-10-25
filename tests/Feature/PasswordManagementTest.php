@@ -64,8 +64,9 @@ class PasswordManagementTest extends TestCase
         $this->get('/dashboard')->assertRedirect('/password/change');
         $this->get('/analytics?overview=1')->assertRedirect('/password/change');
         $this->post('/patients', [])->assertRedirect('/password/change');
-        $this->get('/password/change')->assertOk();
-        $this->put('/password/change', ['current_password' => $temporary, 'password' => self::NEW, 'password_confirmation' => self::NEW])->assertRedirect('/dashboard');
+        $this->get('/password/change')->assertOk()->assertDontSee('name="current_password"', false)->assertSee('Show new password');
+        $this->put('/password/change', ['password' => $temporary, 'password_confirmation' => $temporary])->assertSessionHasErrors('password');
+        $this->put('/password/change', ['password' => self::NEW, 'password_confirmation' => self::NEW])->assertRedirect('/dashboard');
         $this->assertFalse($staff->fresh()->must_change_password);
         $this->assertSame(2, $staff->fresh()->password_version);
         $this->get('/dashboard')->assertOk();
@@ -105,6 +106,13 @@ class PasswordManagementTest extends TestCase
         $this->assertTrue(Hash::check(self::OLD, $this->staff->fresh()->password));
     }
 
+    public function test_normal_change_still_requires_current_password(): void
+    {
+        $this->actingAs($this->staff)->get('/password/change')->assertOk()->assertSee('name="current_password"', false);
+        $this->put('/password/change', ['password' => self::NEW, 'password_confirmation' => self::NEW])->assertSessionHasErrors('current_password');
+        $this->assertTrue(Hash::check(self::OLD, $this->staff->fresh()->password));
+    }
+
     public function test_reset_deletes_database_sessions_and_preserves_inactive_status(): void
     {
         config(['session.driver' => 'database']);
@@ -119,7 +127,7 @@ class PasswordManagementTest extends TestCase
 
     public function test_new_staff_requires_change_but_existing_staff_does_not_and_logout_is_allowed(): void
     {
-        $this->actingAs($this->admin)->post('/staff', ['name' => 'Fictional new staff', 'email' => 'new-password-test@rhu.test', 'password' => self::TEMP, 'password_confirmation' => self::TEMP, 'roles' => ['Nurse']])->assertRedirect();
+        $this->actingAs($this->admin)->post('/staff', ['name' => 'Fictional new staff', 'email' => 'new-password-test@rhu.test', 'password' => self::TEMP, 'password_confirmation' => self::TEMP, 'primary_role' => 'Nurse', 'roles' => ['Nurse']])->assertRedirect();
         $created = User::where('email', 'new-password-test@rhu.test')->firstOrFail();
         $this->assertTrue($created->must_change_password);
         $this->assertFalse($this->staff->fresh()->must_change_password);

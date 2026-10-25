@@ -1,0 +1,35 @@
+import { test, expect } from '@playwright/test';
+
+test('primary role is locked and only approved additional access is offered', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Email address').fill('admin@rhu.test');
+  await page.getByLabel('Password', { exact: true }).fill('Password!');
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(page).toHaveURL(/dashboard/);
+  await page.goto('/staff/create');
+  await page.getByLabel('Primary role', { exact: true }).selectOption('System Admin');
+  await expect(page.getByRole('checkbox', { name: 'Information Staff', exact: true })).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: 'Nurse', exact: true })).toBeHidden();
+  await page.getByRole('checkbox', { name: 'Information Staff', exact: true }).check();
+  await page.getByLabel('Primary role', { exact: true }).selectOption('Doctor / Medical Officer');
+  await expect(page.getByRole('checkbox', { name: 'Nurse', exact: true })).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: 'Information Staff', exact: true })).toBeHidden();
+  await page.getByRole('checkbox', { name: 'Nurse', exact: true }).check();
+  await page.getByLabel('Full name', { exact: true }).fill('Fictional Role Review');
+  await page.getByLabel('Email address').fill('role-review@example.test');
+  await page.locator('#password').fill('Test123!');
+  await page.locator('#password_confirmation').fill('Test123!');
+  await page.getByRole('button', { name: 'Create account', exact: true }).click();
+  await expect(page).toHaveURL(/staff$/);
+  await page.getByRole('link', { name: 'Manage access for Fictional Role Review', exact: true }).click();
+  await expect(page.getByText('Primary role - Locked', { exact: true })).toBeVisible();
+  await expect(page.locator('#primary_role')).toHaveCount(0);
+  await expect(page.getByRole('checkbox', { name: 'Nurse', exact: true })).toBeChecked();
+  await page.getByRole('checkbox', { name: 'Nurse', exact: true }).uncheck();
+  page.on('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Save access changes', exact: true }).click();
+  await expect(page).toHaveURL(/staff$/);
+  const row = page.getByRole('row').filter({ hasText: 'role-review@example.test' });
+  await expect(row).toContainText('Doctor / Medical Officer');
+  await expect(row).toContainText('Additional: None');
+});

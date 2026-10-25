@@ -73,8 +73,9 @@ class AuditViewerTest extends TestCase
             $this->event('visit.created', '2026-09-24 01:00:00');
         }
         $this->event('visit.created', '2026-09-01 01:00:00');
-        $this->get('/audit')->assertOk()->assertSee('26 matching events')->assertViewHas('events', fn ($events) => $events->count() === 25);
-        $this->get('/audit?page=2&action=visit.created')->assertOk()->assertViewHas('events', fn ($events) => $events->count() === 1)->assertSee('action=visit.created', false);
+        $page = $this->get('/audit?action=visit.created')->assertOk()->assertSee('26 matching events')->assertViewHas('events', fn ($events) => $events->count() === 10);
+        $second = $this->get($page->viewData('events')->nextPageUrl())->assertOk()->assertViewHas('events', fn ($events) => $events->count() === 10)->assertSee('action=visit.created', false);
+        $this->get($second->viewData('events')->nextPageUrl())->assertOk()->assertViewHas('events', fn ($events) => $events->count() === 6);
         foreach (['from=bad', 'from=2026-09-25&to=2026-09-24', 'staff[]=1', 'action=secret'] as $query) {
             $this->get('/audit?'.$query)->assertSessionHasErrors();
         }

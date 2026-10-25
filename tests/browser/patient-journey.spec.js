@@ -42,6 +42,7 @@ test('one fictional patient passes through all implemented operational roles', a
     await page.getByLabel('Systolic BP (mmHg)', { exact: true }).fill('120');
     await page.getByLabel('Diastolic BP (mmHg)', { exact: true }).fill('80');
     await page.getByLabel('Temperature (Celsius)', { exact: true }).fill('36.5');
+    await page.getByLabel('Nurse assessment summary').fill('Fictional nurse observations for workflow testing.');
     await page.getByRole('button', { name: 'Save vital signs' }).click();
     await expect(page.getByRole('status')).toBeVisible();
 
@@ -147,11 +148,11 @@ test('one fictional patient passes through all implemented operational roles', a
 
     page = await asRole('medtech');
     await page.goto('/laboratory/' + scope);
-    await page.getByLabel('Requested test / service (required)').fill('Fictional journey laboratory service');
-    await page.getByLabel('Service status (required)').selectOption('EXTERNAL_ADVISED');
+    await page.getByLabel('Requested test / service', { exact: true }).selectOption({ label: 'Complete blood count (CBC)' });
+    await page.getByLabel('Service status', { exact: true }).selectOption('EXTERNAL_ADVISED');
     await page.getByLabel('External laboratory advice', { exact: true }).fill('Fictional external advice only');
     await page.getByRole('button', { name: 'Save laboratory service' }).click();
-    await expect(page.getByRole('heading', { name: 'Fictional journey laboratory service' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Complete blood count (CBC)', exact: true })).toBeVisible();
 
     page = await asRole('pharmacist');
     await page.goto('/pharmacy/' + scope);

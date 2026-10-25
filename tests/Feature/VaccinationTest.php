@@ -94,7 +94,7 @@ class VaccinationTest extends TestCase
 
     public function test_validation_and_vaccination_changes_invalidate_completion_review(): void
     {
-        foreach ([['vaccine_name' => ''], ['dose' => ''], ['administered_by' => ''], ['confirm' => 0],
+        foreach ([['vaccine_name' => ''], ['dose' => ''], ['administered_by' => ''], ['administered_by' => 'Nurse 123'], ['confirm' => 0],
             ['administered_on' => '2000-01-01'], ['next_appointment' => '2000-01-01'],
             ['batch_number' => str_repeat('x', 101)], ['remarks' => str_repeat('x', 1001)],
             ['visit_id' => 999], ['created_by' => 999], ['lock_version' => 1]] as $invalid) {

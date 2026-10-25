@@ -32,7 +32,7 @@ for (const [path, account, range] of [
     await searchForm.getByLabel('Patient name or queue number').fill('');
     await searchForm.getByLabel('Patient name or queue number').press('Enter');
     await expect(page).toHaveURL(url => !url.searchParams.get('search') && url.searchParams.get(range ? 'from' : 'date') === '2000-01-01');
-    await expect(page.getByRole('region', { name: /scroll to view more/ })).toHaveJSProperty('clientHeight', 744);
+    await expect.poll(() => page.locator('[data-scroll-queue]').evaluate(el => el.getBoundingClientRect().bottom <= innerHeight && document.documentElement.scrollHeight <= innerHeight + 1)).toBe(true);
     await expect(page.getByRole('status').getByText('No matching visits', { exact: true })).toBeVisible();
     {
       await dateForm.getByLabel(range ? 'Date scope' : 'Visit date', { exact: true }).selectOption('1');

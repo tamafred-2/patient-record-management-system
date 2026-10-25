@@ -69,7 +69,7 @@ class TreatmentRecordTest extends TestCase
         $nurse = User::factory()->create();
         $nurse->assignRole('Nurse');
         $vitalsUrl = route('assessments.save', [$this->patient, $this->visit]);
-        $this->actingAs($nurse)->put($vitalsUrl, ['lock_version' => 0, 'respiratory_rate' => 18, 'oxygen_saturation' => 98])->assertSessionHasNoErrors();
+        $this->actingAs($nurse)->put($vitalsUrl, ['assessment_summary' => 'Fictional nurse observations.', 'lock_version' => 0, 'respiratory_rate' => 18, 'oxygen_saturation' => 98])->assertSessionHasNoErrors();
         $this->travel(10)->minutes();
         $data = ['lock_version' => 0, 'vitals_version' => 1, 'assessment' => 'Fictional assessment'];
         $this->actingAs($this->officer)->put($this->url(), $data)->assertSessionHasNoErrors();
@@ -78,7 +78,7 @@ class TreatmentRecordTest extends TestCase
         $this->get($this->url())->assertSee('Current measurements last saved: Sep 25, 2026 9:00:00 AM')
             ->assertSee('ITR last saved: Sep 25, 2026 9:10:00 AM');
         $this->travel(20)->minutes();
-        $this->actingAs($nurse)->put($vitalsUrl, ['lock_version' => 1, 'oxygen_saturation' => 97])->assertSessionHasNoErrors();
+        $this->actingAs($nurse)->put($vitalsUrl, ['assessment_summary' => 'Fictional nurse observations.', 'lock_version' => 1, 'oxygen_saturation' => 97])->assertSessionHasNoErrors();
         $this->actingAs($this->officer)->put($this->url(), array_replace($data, ['lock_version' => 1]))->assertSessionHasErrors('lock_version');
         $this->assertEquals(98, $record->fresh()->objective_snapshot['oxygen_saturation']);
         $this->get($this->url())->assertOk()->assertSee('Objective values at last ITR save')
@@ -129,9 +129,9 @@ class TreatmentRecordTest extends TestCase
         $nurse = User::factory()->create();
         $nurse->assignRole('Nurse');
         $url = route('assessments.save', [$this->patient, $this->visit]);
-        $this->actingAs($nurse)->put($url, ['lock_version' => 0, 'oxygen_saturation' => 101])->assertSessionHasErrors('oxygen_saturation');
-        $this->put($url, ['lock_version' => 0, 'respiratory_rate' => 1.5])->assertSessionHasErrors('respiratory_rate');
-        $this->put($url, ['lock_version' => 0, 'oxygen_saturation' => 0])->assertSessionHasNoErrors();
+        $this->actingAs($nurse)->put($url, ['assessment_summary' => 'Fictional nurse observations.', 'lock_version' => 0, 'oxygen_saturation' => 101])->assertSessionHasErrors('oxygen_saturation');
+        $this->put($url, ['assessment_summary' => 'Fictional nurse observations.', 'lock_version' => 0, 'respiratory_rate' => 1.5])->assertSessionHasErrors('respiratory_rate');
+        $this->put($url, ['assessment_summary' => 'Fictional nurse observations.', 'lock_version' => 0, 'oxygen_saturation' => 0])->assertSessionHasNoErrors();
         $this->assertDatabaseHas('vital_signs', ['oxygen_saturation' => 0]);
     }
 

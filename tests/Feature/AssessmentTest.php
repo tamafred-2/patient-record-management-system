@@ -51,32 +51,32 @@ class AssessmentTest extends TestCase
 
     public function test_measurements_save_update_and_preserve_ownership(): void
     {
-        $this->put($this->url(), ['lock_version' => 0, 'systolic_bp' => 120, 'diastolic_bp' => 80, 'temperature' => 36.5])->assertSessionHasNoErrors()->assertRedirect();
+        $this->put($this->url(), ['assessment_summary' => 'Fictional nurse observations.', 'lock_version' => 0, 'systolic_bp' => 120, 'diastolic_bp' => 80, 'temperature' => 36.5])->assertSessionHasNoErrors()->assertRedirect();
         $record = VitalSign::firstOrFail();
         $this->assertEquals($this->visit->id, $record->visit_id);
         $this->assertEquals($this->nurse->id, $record->recorded_by);
         $this->get($this->url())->assertOk()->assertSee('36.50');
         $this->get(route('assessments.index'))->assertSee('Recorded');
-        $this->put($this->url(), ['lock_version' => 1, 'pulse_rate' => 70])->assertSessionHasNoErrors();
+        $this->put($this->url(), ['assessment_summary' => 'Fictional nurse observations.', 'lock_version' => 1, 'pulse_rate' => 70])->assertSessionHasNoErrors();
         $this->assertEquals(2, $record->fresh()->lock_version);
         $audit = Activity::where('description', 'vitals.updated')->firstOrFail();
         $this->assertArrayNotHasKey('pulse_rate', $audit->properties->all());
         $this->assertDatabaseCount('vital_signs', 1);
-        $this->put($this->url(), ['lock_version' => 1, 'pulse_rate' => 90])->assertSessionHasErrors('lock_version');
+        $this->put($this->url(), ['assessment_summary' => 'Fictional nurse observations.', 'lock_version' => 1, 'pulse_rate' => 90])->assertSessionHasErrors('lock_version');
         $this->assertEquals(70, $record->fresh()->pulse_rate);
     }
 
     public function test_invalid_measurements_and_server_fields_are_rejected(): void
     {
         foreach ([
-            ['lock_version' => 0],
-            ['lock_version' => 0, 'systolic_bp' => 120],
-            ['lock_version' => 0, 'pulse_rate' => -1],
-            ['lock_version' => 0, 'pulse_rate' => 1.5],
-            ['lock_version' => 0, 'temperature' => 1000],
-            ['lock_version' => 0, 'weight_kg' => 65.123],
-            ['lock_version' => 0, 'pulse_rate' => 70, 'visit_id' => 999],
-            ['lock_version' => 0, 'pulse_rate' => 70, 'recorded_by' => 999],
+            ['assessment_summary' => 'Fictional nurse observations.', 'lock_version' => 0],
+            ['assessment_summary' => 'Fictional nurse observations.', 'lock_version' => 0, 'systolic_bp' => 120],
+            ['assessment_summary' => 'Fictional nurse observations.', 'lock_version' => 0, 'pulse_rate' => -1],
+            ['assessment_summary' => 'Fictional nurse observations.', 'lock_version' => 0, 'pulse_rate' => 1.5],
+            ['assessment_summary' => 'Fictional nurse observations.', 'lock_version' => 0, 'temperature' => 1000],
+            ['assessment_summary' => 'Fictional nurse observations.', 'lock_version' => 0, 'weight_kg' => 65.123],
+            ['assessment_summary' => 'Fictional nurse observations.', 'lock_version' => 0, 'pulse_rate' => 70, 'visit_id' => 999],
+            ['assessment_summary' => 'Fictional nurse observations.', 'lock_version' => 0, 'pulse_rate' => 70, 'recorded_by' => 999],
         ] as $data) {
             $this->put($this->url(), $data)->assertSessionHasErrors();
         }
@@ -89,16 +89,16 @@ class AssessmentTest extends TestCase
         $other->patient_number = 'RHU-FICTIONAL-OTHER';
         $other->save();
         $this->get($this->url($other))->assertNotFound();
-        $this->put($this->url($other), ['lock_version' => 0, 'pulse_rate' => 70])->assertNotFound();
+        $this->put($this->url($other), ['assessment_summary' => 'Fictional nurse observations.', 'lock_version' => 0, 'pulse_rate' => 70])->assertNotFound();
         $this->visit->status = 'COMPLETED';
         $this->visit->save();
-        $this->put($this->url(), ['lock_version' => 0, 'pulse_rate' => 70])->assertSessionHasErrors('visit');
+        $this->put($this->url(), ['assessment_summary' => 'Fictional nurse observations.', 'lock_version' => 0, 'pulse_rate' => 70])->assertSessionHasErrors('visit');
         foreach (['System Admin', 'Information Staff', 'Doctor / Medical Officer', 'MedTech', 'Pharmacist', 'Midwife'] as $role) {
             $user = User::factory()->create();
             $user->assignRole($role);
             $this->actingAs($user)->get(route('assessments.index'))->assertForbidden();
             $this->get($this->url())->assertForbidden();
-            $this->put($this->url(), ['lock_version' => 0, 'pulse_rate' => 70])->assertForbidden();
+            $this->put($this->url(), ['assessment_summary' => 'Fictional nurse observations.', 'lock_version' => 0, 'pulse_rate' => 70])->assertForbidden();
         }
         $this->assertDatabaseCount('vital_signs', 0);
     }
