@@ -5,7 +5,7 @@
         $canEdit = $visit->status === 'OPEN' && auth()->user()->can($record ? 'itr.update' : 'itr.create');
         $objectiveFields = ['temperature' => 'T (Celsius)', 'pulse_rate' => 'P (bpm)', 'respiratory_rate' => 'R (cpm)', 'systolic_bp' => 'Systolic BP (mmHg)', 'diastolic_bp' => 'Diastolic BP (mmHg)', 'oxygen_saturation' => 'O2 Sat (%)', 'height_cm' => 'H (cm)', 'weight_kg' => 'W (kg)'];
     @endphp
-    <a href="{{ route('consultations.show', [$patient, $visit]) }}" class="text-emerald-800 underline">Back to visit summary</a>
+    <x-back-link href="{{ route('consultations.show', [$patient, $visit]) }}">Back to visit summary</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">Individual Treatment Record</h1>
     <section class="my-6 rounded-xl border border-slate-200 bg-white p-6">
         <h2 class="text-xl font-semibold">{{ $patient->full_name }}</h2>
@@ -77,21 +77,21 @@
         } }" x-init="diagnosisText = $refs.diagnoses.value; @if($errors->has('diagnoses')) $nextTick(() => $refs.diagnosisEditor.showModal()) @endif">
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <div><h2 class="text-xl font-semibold">Diagnoses recorded for this visit</h2><p class="mt-2 text-sm text-slate-600" x-text="diagnosisText.trim() ? diagnosisText.split(/\r?\n/).filter(line => line.trim()).length + ' diagnosis label(s) in this ITR' : 'No diagnosis labels entered.'"></p></div>
-                <button type="button" @click="$refs.diagnosisEditor.showModal()" aria-haspopup="dialog" class="rounded-lg border border-emerald-800 px-4 py-3 font-semibold text-emerald-800">{{ $canEdit ? 'Edit diagnoses' : 'View diagnoses' }}</button>
+                <x-button variant="secondary" type="button" x-on:click="$refs.diagnosisEditor.showModal()" aria-haspopup="dialog">{{ $canEdit ? 'Edit diagnoses' : 'View diagnoses' }}</x-button>
             </div>
             <x-dialog reference="diagnosisEditor" labelledby="diagnosis-editor-title">
                 <div class="flex items-center justify-between border-b border-slate-100 px-6 py-5"><h2 id="diagnosis-editor-title" class="text-xl font-semibold">Diagnoses recorded for this visit</h2><button type="button" @click="$refs.diagnosisEditor.close()" aria-label="Close diagnoses" class="rounded-lg px-3 py-1 text-xl text-slate-500 hover:bg-slate-100">&times;</button></div>
                 <div class="p-6">
                 <fieldset @disabled(!$canEdit)>
                 <label for="diagnoses" class="mb-2 block text-xl font-semibold">Diagnosis list (optional)</label><p id="diagnoses-help" class="mb-3 text-sm text-slate-600">Record only diagnoses assigned by the doctor for this visit. These entries are counted in the diagnosis charts. Choose a previous entry or select Other to type a custom diagnosis, then click Add diagnosis. You can also edit the list directly, one diagnosis per line (up to 10, 150 characters each). Do not include patient details.</p>
-            <div class="mb-4 flex flex-wrap items-end gap-3"><div class="min-w-0 flex-1"><label for="suggested-diagnosis" class="mb-2 block text-sm font-medium">Choose a diagnosis</label><select id="suggested-diagnosis" x-ref="suggestedDiagnosis" @change="customDiagnosis = $event.target.selectedOptions[0].dataset.custom === 'true'; diagnosisError = ''; if (customDiagnosis) $nextTick(() => $refs.customDiagnosis.focus())" class="w-full rounded-lg border border-slate-300 p-3"><option value="">Select a previous diagnosis or Other</option>@foreach($diagnosisSuggestions as $label)<option value="{{ $label }}">{{ $label }}</option>@endforeach<option value="" data-custom="true">Other - enter a custom diagnosis</option></select></div><button type="button" @click="addDiagnosis()" class="rounded-lg border border-emerald-800 px-4 py-3 font-semibold text-emerald-800">Add diagnosis</button></div>
+            <div class="mb-4 flex flex-wrap items-end gap-3"><div class="min-w-0 flex-1"><label for="suggested-diagnosis" class="mb-2 block text-sm font-medium">Choose a diagnosis</label><select id="suggested-diagnosis" x-ref="suggestedDiagnosis" @change="customDiagnosis = $event.target.selectedOptions[0].dataset.custom === 'true'; diagnosisError = ''; if (customDiagnosis) $nextTick(() => $refs.customDiagnosis.focus())" class="w-full rounded-lg border border-slate-300 p-3"><option value="">Select a previous diagnosis or Other</option>@foreach($diagnosisSuggestions as $label)<option value="{{ $label }}">{{ $label }}</option>@endforeach<option value="" data-custom="true">Other - enter a custom diagnosis</option></select></div><x-button variant="secondary" type="button" x-on:click="addDiagnosis()">Add diagnosis</x-button></div>
             <p class="mb-3 text-xs text-slate-500">Reuse a label to avoid spelling variations. These are previous entries, not suggested diagnoses. Review before saving.</p>
             <div x-show="customDiagnosis" x-cloak class="mb-4"><label for="custom-diagnosis" class="mb-2 block text-sm font-medium">Custom diagnosis</label><input id="custom-diagnosis" x-ref="customDiagnosis" type="text" maxlength="150" placeholder="Enter the doctor-assigned diagnosis" @keydown.enter.prevent="addDiagnosis()" class="w-full rounded-lg border border-slate-300 p-3"><p class="mt-2 text-sm text-slate-500">Click Add diagnosis to include this name in the list below. The name you enter is used in analytics; it is not grouped under Other.</p></div>
             <p x-show="diagnosisError" x-text="diagnosisError" role="alert" class="mb-3 text-sm text-red-700"></p>
             <textarea x-ref="diagnoses" @input="diagnosisText = $event.target.value" id="diagnoses" name="diagnoses" rows="3" maxlength="1600" aria-describedby="diagnoses-help" class="w-full rounded-lg border border-slate-300 p-3">{{ old('diagnoses', implode("\n", $record?->diagnoses ?? [])) }}</textarea>@error('diagnoses')<p class="mt-1 text-sm text-red-700">{{ $message }}</p>@enderror
                 </fieldset>
                 <p class="mt-3 text-sm text-slate-500">{{ $canEdit ? 'Changes stay in this form. Select Save ITR after closing to save them.' : 'This ITR is read-only.' }}</p>
-                <div class="mt-5 flex justify-end"><button type="button" @click="$refs.diagnosisEditor.close()" class="rounded-lg bg-emerald-800 px-4 py-2 font-semibold text-white">Done</button></div>
+                <div class="mt-5 flex justify-end"><x-button type="button" x-on:click="$refs.diagnosisEditor.close()">Done</x-button></div>
                 </div>
             </x-dialog>
         </section>
@@ -99,7 +99,7 @@
         <section class="rounded-xl border border-slate-200 bg-white p-6" x-data="{}" x-init="@if(!$errors->has('diagnoses') && ($errors->has('assessment') || $errors->has('planning') || $errors->has('remarks'))) $nextTick(() => $refs.itrNotes.showModal()) @endif">
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <div><h2 class="text-xl font-semibold">Assessment, Planning and Remarks</h2><p class="mt-2 text-sm text-slate-600">Review or enter the notes for this ITR.</p></div>
-                <button type="button" @click="$refs.itrNotes.showModal()" aria-haspopup="dialog" class="rounded-lg border border-emerald-800 px-4 py-3 font-semibold text-emerald-800">{{ $canEdit ? 'Edit notes' : 'View notes' }}</button>
+                <x-button variant="secondary" type="button" x-on:click="$refs.itrNotes.showModal()" aria-haspopup="dialog">{{ $canEdit ? 'Edit notes' : 'View notes' }}</x-button>
             </div>
             <x-dialog reference="itrNotes" labelledby="itr-notes-title">
                 <div class="flex items-start justify-between gap-3 border-b border-slate-100 px-6 py-5">
@@ -118,7 +118,7 @@
                         @endforeach
                     </fieldset>
                     <p class="mt-3 text-sm text-slate-500">{{ $canEdit ? 'Changes stay in this form. Select Save ITR after closing to save them.' : 'This ITR is read-only.' }}</p>
-                    <div class="mt-5 flex justify-end"><button type="button" @click="$refs.itrNotes.close()" class="rounded-lg bg-emerald-800 px-4 py-2 font-semibold text-white">Done</button></div>
+                    <div class="mt-5 flex justify-end"><x-button type="button" x-on:click="$refs.itrNotes.close()">Done</x-button></div>
                 </div>
             </x-dialog>
         </section>

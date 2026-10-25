@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Service;
 use App\Models\Visit;
+use App\Support\ListFilters;
 use App\Support\TableSearch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +15,7 @@ class ServiceController extends Controller
 {
     public function index(Request $request)
     {
-        $filters = $request->validate(['search' => ['nullable', 'string', 'max:100'], 'status' => ['nullable', 'in:active,inactive']]);
+        $filters = $request->validate(['search' => ListFilters::search(), 'status' => ['nullable', 'in:active,inactive']]);
         $query = Service::query();
         TableSearch::apply($query, $filters['search'] ?? '', ['name', 'code', 'description']);
         if (! empty($filters['status'])) {

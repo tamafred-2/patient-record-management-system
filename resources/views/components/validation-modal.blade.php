@@ -10,6 +10,6 @@
                 @foreach($messages as $message)<li data-error-field="{{ $field }}">{{ $message }}</li>@endforeach
             @endforeach
         </ul>
-        <button type="button" data-validation-close autofocus class="mt-6 w-full rounded-lg bg-emerald-800 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">Return to form</button>
+        <x-button class="mt-6 w-full" type="button" data-validation-close autofocus>Return to form</x-button>
     </div>
 </dialog>

@@ -7,6 +7,7 @@ use App\Models\Service;
 use App\Models\User;
 use App\Models\Visit;
 use App\Services\QueueNumbers;
+use App\Support\ListFilters;
 use App\Support\RegistrationAlerts;
 use App\Support\WorkflowAlerts;
 use Carbon\CarbonImmutable;
@@ -23,10 +24,10 @@ class VisitController extends Controller
         abort_unless(Gate::allows('viewAny', Visit::class) || Gate::allows('analytics.overview'), 403);
         $today = now('Asia/Manila')->toDateString();
         $input = $request->validate([
-            'search' => ['nullable', 'string', 'max:100'],
+            'search' => ListFilters::search(),
             'all' => ['sometimes', 'boolean'],
-            'from' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()],
-            'to' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()],
+            'from' => ListFilters::pastDate(),
+            'to' => ListFilters::pastDate(),
         ]);
         $search = trim($input['search'] ?? '');
         $allDates = (bool) ($input['all'] ?? false);
@@ -116,7 +117,7 @@ class VisitController extends Controller
             $visit->visit_date = $data['visit_date'];
             $visit->queue_reference = $reservation->queue_reference;
             $visit->created_by = $request->user()->id;
-            $visit->status = 'OPEN';
+            $visit->status = Visit::OPEN;
             $visit->applyPriority($data);
             $visit->save();
             $visit->visit_number = 'V-'.str_replace('-', '', $data['visit_date']).'-'.str_pad((string) $visit->id, 4, '0', STR_PAD_LEFT);

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\EligibilityCheck;
 use App\Models\Patient;
 use App\Models\Visit;
+use App\Support\ListFilters;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -15,7 +16,7 @@ class EligibilityController extends Controller
     public function index(Request $request)
     {
         Gate::authorize('eligibility.view');
-        $data = $request->validate(['all' => ['sometimes', 'boolean'], 'date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()], 'search' => ['nullable', 'string', 'max:100']]);
+        $data = $request->validate(['all' => ['sometimes', 'boolean'], 'date' => ListFilters::pastDate(), 'search' => ListFilters::search()]);
         $search = trim($data['search'] ?? '');
         $allDates = (bool) ($data['all'] ?? false);
         $date = $data['date'] ?? now('Asia/Manila')->toDateString();
@@ -48,7 +49,7 @@ class EligibilityController extends Controller
         ]);
         DB::transaction(function () use ($request, $patient, $visit, $data) {
             $lockedVisit = $patient->visits()->whereKey($visit->id)->lockForUpdate()->firstOrFail();
-            if ($lockedVisit->status !== 'OPEN') {
+            if (! $lockedVisit->isOpen()) {
                 throw ValidationException::withMessages(['visit' => 'Verification can only be changed for an open visit.']);
             }
             $record = $lockedVisit->eligibilityCheck;

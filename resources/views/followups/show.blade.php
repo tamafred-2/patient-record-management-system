@@ -1,10 +1,10 @@
 <x-layout title="Follow-up tests">
-    <a href="{{ route($isDoctor ? 'consultations.show' : 'assessments.edit', [$patient, $visit]) }}" class="text-emerald-800 underline">Back to {{ $isDoctor ? 'doctor visit' : 'assessment' }}</a>
+    <x-back-link href="{{ route($isDoctor ? 'consultations.show' : 'assessments.edit', [$patient, $visit]) }}">Back to {{ $isDoctor ? 'doctor visit' : 'assessment' }}</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">Follow-up tests</h1>
     <p class="mt-3 font-medium">{{ $patient->full_name }} &middot; {{ $patient->patient_number }}</p>
     <p class="mt-1 text-sm text-slate-600">{{ $visit->visit_number }} &middot; {{ $visit->visit_date->format('M j, Y') }} &middot; {{ $visit->service->name }} &middot; Queue: {{ $visit->queue_reference ?? 'Not recorded' }}</p>
     <p class="mt-4 text-sm text-slate-600">Doctors order laboratory tests directly. Nurses whom a doctor has authorized can order permitted tests for patients they assessed. Laboratory staff record availability and results. The original visit service stays unchanged.</p>
-    @if($errors->any())<div role="alert" class="mt-5 rounded-lg bg-red-50 p-4 text-red-800">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach<p class="mt-2"><a class="underline" href="{{ route('followups.show', [$patient, $visit]) }}">Reload current assessment and authorizations</a></p></div>@endif
+    @if($errors->any())<x-alert type="error" class="mt-5">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach<p class="mt-2"><a class="underline" href="{{ route('followups.show', [$patient, $visit]) }}">Reload current assessment and authorizations</a></p></x-alert>@endif
     @php($ready = $visit->status === 'OPEN' && $visit->vitalSign)
     @unless($isDoctor && $ready)
         <section class="mt-6 rounded-xl border border-slate-200 bg-white p-5" aria-labelledby="assessment-record-title">@include('followups.assessment-record')</section>

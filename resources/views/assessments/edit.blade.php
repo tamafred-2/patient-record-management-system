@@ -6,9 +6,9 @@
         $fields = ['systolic_bp' => ['Systolic BP (mmHg)', '1'], 'diastolic_bp' => ['Diastolic BP (mmHg)', '1'], 'temperature' => ['Temperature (Celsius)', '0.01'], 'pulse_rate' => ['Pulse rate (bpm)', '1'], 'height_cm' => ['Height (cm)', '0.01'], 'weight_kg' => ['Weight (kg)', '0.01'], 'respiratory_rate' => ['Respiratory rate (cpm)', '1'], 'oxygen_saturation' => ['O2 saturation (%)', '0.01']];
     @endphp
     @if($asMidwife)
-        <a href="{{ route(App\Support\VitalsAccess::midwifeReturnRoute($visit), [$patient, $visit]) }}" class="text-emerald-800 underline">Back to {{ $visit->service->seed_key === 'VACCINATION' ? 'vaccination record' : 'Midwife care record' }}</a>
+        <x-back-link href="{{ route(App\Support\VitalsAccess::midwifeReturnRoute($visit), [$patient, $visit]) }}">Back to {{ $visit->service->seed_key === 'VACCINATION' ? 'vaccination record' : 'Midwife care record' }}</x-back-link>
     @else
-        <a href="{{ route('assessments.index', ['date' => $visit->visit_date->toDateString()]) }}" class="text-emerald-800 underline">Back to assessments</a>
+        <x-back-link href="{{ route('assessments.index', ['date' => $visit->visit_date->toDateString()]) }}">Back to assessments</x-back-link>
     @endif
     <h1 class="mt-5 text-3xl font-semibold">Vital signs and nurse assessment</h1>
     <section class="my-6 rounded-xl border border-slate-200 bg-white p-5">

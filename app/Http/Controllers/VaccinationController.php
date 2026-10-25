@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Patient;
 use App\Models\VaccinationRecord;
 use App\Models\Visit;
+use App\Support\ListFilters;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -15,7 +16,7 @@ class VaccinationController extends Controller
     public function index(Request $request)
     {
         Gate::authorize('vaccinations.view');
-        $data = $request->validate(['all' => ['sometimes', 'boolean'], 'date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()], 'search' => ['nullable', 'string', 'max:100']]);
+        $data = $request->validate(['all' => ['sometimes', 'boolean'], 'date' => ListFilters::pastDate(), 'search' => ListFilters::search()]);
         $allDates = (bool) ($data['all'] ?? false);
         $date = $data['date'] ?? now('Asia/Manila')->toDateString();
         $search = trim($data['search'] ?? '');
@@ -63,7 +64,7 @@ class VaccinationController extends Controller
         ]);
         DB::transaction(function () use ($request, $patient, $visit, $record, $data) {
             $visit = $patient->visits()->vaccinationVisits()->whereKey($visit->id)->lockForUpdate()->firstOrFail();
-            if ($visit->status !== 'OPEN') {
+            if (! $visit->isOpen()) {
                 throw ValidationException::withMessages(['visit' => 'Only open visits can have vaccination records changed.']);
             }
             $entry = $record === null ? null : $visit->vaccinationRecords()->findOrFail($record);

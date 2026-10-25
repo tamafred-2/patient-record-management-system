@@ -1,6 +1,6 @@
 <x-layout title="Vaccination record">
     @php($canEdit = $visit->status === 'OPEN' && auth()->user()->can('vaccinations.record'))
-    <a href="{{ route('vaccinations.index', ['date' => $visit->visit_date->toDateString()]) }}" class="text-emerald-800 underline">Back to vaccination visits</a>
+    <x-back-link href="{{ route('vaccinations.index', ['date' => $visit->visit_date->toDateString()]) }}">Back to vaccination visits</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">Vaccination record</h1>
     <section class="my-6 rounded-xl border border-slate-200 bg-white p-6">
         <h2 class="text-xl font-semibold">{{ $patient->full_name }}</h2>
@@ -25,7 +25,7 @@
                 <x-input name="next_appointment" label="Next appointment (optional)" type="date" :value="$record?->next_appointment?->toDateString()" />
             </div>
             <p class="text-sm text-slate-500">Enter a return date only when arranged by staff. No vaccine schedule is calculated. The signed-in account is recorded separately as the person entering this record.</p>
-            <div><label for="remarks" class="mb-2 block font-medium">Remarks (optional)</label><textarea id="remarks" name="remarks" rows="3" maxlength="1000" class="w-full rounded-lg border border-slate-300 p-3">{{ old('remarks', $record?->remarks) }}</textarea></div>
+            <x-textarea name="remarks" label="Remarks (optional)" :value="$record?->remarks" rows="3" maxlength="1000" />
             <label class="flex items-start gap-3 text-sm"><input type="checkbox" name="confirm" value="1" required class="mt-1"><span>I checked these details against the vaccine actually administered during this visit.</span></label>
             <div class="flex flex-wrap items-center gap-4"><x-button>Save vaccination record</x-button>@if($record)<a href="{{ route('vaccinations.show', [$patient, $visit]) }}" class="text-emerald-800 underline">Cancel editing</a>@endif</div>
         </form>

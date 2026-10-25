@@ -1,6 +1,6 @@
 <x-layout title="Midwife care record">
     @php($canEdit = $visit->status === 'OPEN' && auth()->user()->can('midwife-care.record'))
-    <a href="{{ route('midwife-care.index', ['date' => $visit->visit_date->toDateString()]) }}" class="text-emerald-800 underline">Back to Midwife care visits</a>
+    <x-back-link href="{{ route('midwife-care.index', ['date' => $visit->visit_date->toDateString()]) }}">Back to Midwife care visits</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">Midwife care record</h1>
     <p class="mt-2 text-sm text-slate-500">Basic service record for RHU review. This is not an official clinical form.</p>
     <section class="my-6 rounded-xl border border-slate-200 bg-white p-6">
@@ -18,7 +18,7 @@
             <input type="hidden" name="lock_version" value="{{ old('lock_version', $record?->lock_version ?? 0) }}">
             @unless($record)<input type="hidden" name="submission_token" value="{{ old('submission_token', (string) Illuminate\Support\Str::uuid()) }}">@endunless
             <div><label for="care_type" class="mb-2 block font-medium">Care type (required)</label><select id="care_type" name="care_type" x-model="careType" required class="w-full rounded-lg border border-slate-300 p-3"><option value="">Select the service provided</option>@foreach(App\Models\MidwifeCareRecord::TYPES as $key => $label)<option value="{{ $key }}" @selected(old('care_type', $record?->care_type) === $key)>{{ $label }}</option>@endforeach</select></div>
-            <div><label for="purpose" class="mb-2 block font-medium">Visit purpose (required)</label><textarea id="purpose" name="purpose" rows="3" maxlength="3000" required class="w-full rounded-lg border border-slate-300 p-3">{{ old('purpose', $record?->purpose) }}</textarea></div>
+            <x-textarea name="purpose" label="Visit purpose (required)" :value="$record?->purpose" rows="3" maxlength="3000" required />
             <div x-cloak x-show="careType === 'COMMUNITY'"><label for="location" class="mb-2 block font-medium">Community / home visit location (required)</label><input id="location" name="location" maxlength="200" :disabled="careType !== 'COMMUNITY'" :required="careType === 'COMMUNITY'" value="{{ old('location', $record?->location) }}" class="w-full rounded-lg border border-slate-300 p-3"></div>
             @foreach(['services_provided' => 'Services provided (optional)', 'notes' => 'Care notes (optional)'] as $field => $label)
                 <div><label for="{{ $field }}" class="mb-2 block font-medium">{{ $label }}</label><textarea id="{{ $field }}" name="{{ $field }}" rows="4" maxlength="3000" class="w-full rounded-lg border border-slate-300 p-3">{{ old($field, $record?->$field) }}</textarea></div>

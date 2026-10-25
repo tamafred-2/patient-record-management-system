@@ -24,7 +24,7 @@ class FollowupController extends Controller
 
     private function ready(Visit $visit): void
     {
-        if ($visit->status !== 'OPEN' || ! $visit->vitalSign) {
+        if (! $visit->isOpen() || ! $visit->vitalSign) {
             throw ValidationException::withMessages(['followup' => 'Follow-up requests require an open visit with a saved assessment.']);
         }
     }

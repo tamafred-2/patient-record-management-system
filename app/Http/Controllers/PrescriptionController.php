@@ -77,7 +77,7 @@ class PrescriptionController extends Controller
                 $record->visit_id = $visit->id;
                 $record->treatment_record_id = $visit->treatmentRecord->id;
                 $record->doctor_id = $request->user()->id;
-                $record->status = 'DRAFT';
+                $record->status = Prescription::DRAFT;
             }
             $record->lock_version = (int) $data['lock_version'] + 1;
             $record->save();
@@ -108,7 +108,7 @@ class PrescriptionController extends Controller
             if (! $record->items()->exists()) {
                 throw ValidationException::withMessages(['items' => 'Add at least one medicine.']);
             }
-            $record->status = 'ISSUED';
+            $record->status = Prescription::ISSUED;
             $record->prescribed_at = now();
             $record->lock_version++;
             $record->save();
@@ -122,7 +122,7 @@ class PrescriptionController extends Controller
     private function ensureWritable($visit, ?Prescription $record, Request $request): void
     {
         abort_if($record && $record->doctor_id !== $request->user()->id, 403);
-        if ($visit->status !== 'OPEN' || ! $visit->treatmentRecord || ($record && $record->status !== 'DRAFT')) {
+        if (! $visit->isOpen() || ! $visit->treatmentRecord || ($record && $record->status !== Prescription::DRAFT)) {
             throw ValidationException::withMessages(['prescription' => 'Only drafts for open visits with a saved ITR can be changed.']);
         }
     }

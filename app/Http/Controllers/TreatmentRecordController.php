@@ -74,7 +74,7 @@ class TreatmentRecordController extends Controller
             $lockedVisit = $patient->visits()->whereKey($visit->id)->lockForUpdate()->firstOrFail();
             $record = $lockedVisit->treatmentRecord;
             Gate::authorize($record ? 'itr.update' : 'itr.create');
-            if ($lockedVisit->status !== 'OPEN') {
+            if (! $lockedVisit->isOpen()) {
                 throw ValidationException::withMessages(['visit' => 'ITR editing is available only for open visits.']);
             }
             if ((int) $data['lock_version'] !== ($record?->lock_version ?? 0) || (int) $data['vitals_version'] !== ($lockedVisit->vitalSign?->lock_version ?? 0)) {

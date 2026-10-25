@@ -13,6 +13,10 @@ class Visit extends Model
 {
     protected $guarded = ['*'];
 
+    public const OPEN = 'OPEN';
+
+    public const COMPLETED = 'COMPLETED';
+
     public const PRIORITY_RANKS = ['REGULAR' => 0, 'PRIORITY' => 1, 'EMERGENCY' => 2];
 
     public const PRIORITY_LABELS = ['REGULAR' => 'Regular', 'PRIORITY' => 'Priority', 'EMERGENCY' => 'Emergency'];
@@ -50,7 +54,7 @@ class Visit extends Model
     // authorization for patients whose assessment they saved. $standing is the nurse's usable standing authority, if any.
     public function scopeOrderableBy(Builder $query, User $nurse, bool $standing): Builder
     {
-        return $query->where('status', 'OPEN')
+        return $query->where('status', self::OPEN)
             ->whereHas('vitalSign', fn ($vital) => $vital->where(fn ($by) => $by->where('recorded_by', $nurse->id)->orWhere('updated_by', $nurse->id)))
             ->when(! $standing, fn ($match) => $match->whereHas('followupAuthorizations', fn ($grant) => $grant->availableTo($nurse)));
     }
@@ -95,22 +99,17 @@ class Visit extends Model
 
     public function scopeSearchPatientOrQueue(Builder $query, ?string $search): Builder
     {
-        $terms = preg_split('/\s+/u', trim($search ?? ''), -1, PREG_SPLIT_NO_EMPTY);
-        foreach ($terms as $term) {
-            $pattern = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_strtolower($term)).'%';
-            $query->where(function (Builder $match) use ($pattern) {
-                $match->whereRaw("LOWER(queue_reference) LIKE ? ESCAPE '!'", [$pattern])
-                    ->orWhereHas('patient', function (Builder $patient) use ($pattern) {
-                        $patient->where(function (Builder $names) use ($pattern) {
-                            foreach (['patient_number', 'first_name', 'middle_name', 'last_name', 'suffix'] as $field) {
-                                $names->orWhereRaw("LOWER({$field}) LIKE ? ESCAPE '!'", [$pattern]);
-                            }
-                        });
-                    });
-            });
+        foreach (TableSearch::patterns($search) as $pattern) {
+            $query->where(fn (Builder $match) => TableSearch::matchAny($match, $pattern, ['queue_reference'])
+                ->orWhereHas('patient', fn (Builder $patient) => $patient->where(fn (Builder $names) => TableSearch::matchAny($names, $pattern, Patient::SEARCH_COLUMNS))));
         }
 
         return $query;
+    }
+
+    public function isOpen(): bool
+    {
+        return $this->status === self::OPEN;
     }
 
     protected function casts(): array

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Patient;
 use App\Models\Visit;
+use App\Support\ListFilters;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -12,7 +13,7 @@ class ConsultationController extends Controller
     public function index(Request $request)
     {
         Gate::authorize('consultations.view');
-        $data = $request->validate(['date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()], 'search' => ['nullable', 'string', 'max:100'], 'all' => ['sometimes', 'boolean'], 'record' => ['nullable', 'in:with_itr,without_itr,issued']]);
+        $data = $request->validate(['date' => ListFilters::pastDate(), 'search' => ListFilters::search(), 'all' => ['sometimes', 'boolean'], 'record' => ['nullable', 'in:with_itr,without_itr,issued']]);
         $search = trim($data['search'] ?? '');
         $allDates = (bool) ($data['all'] ?? false);
         $record = $data['record'] ?? null;
@@ -21,7 +22,7 @@ class ConsultationController extends Controller
             ->when(! $allDates, fn ($query) => $query->whereDate('visit_date', $date))
             ->when($record === 'with_itr', fn ($query) => $query->has('treatmentRecord'))
             ->when($record === 'without_itr', fn ($query) => $query->doesntHave('treatmentRecord'))
-            ->when($record === 'issued', fn ($query) => $query->whereHas('prescription', fn ($prescription) => $prescription->where('status', 'ISSUED')))
+            ->when($record === 'issued', fn ($query) => $query->whereHas('prescription', fn ($prescription) => $prescription->issued()))
             ->searchPatientOrQueue($search)->priorityFirst()->scrollPaginate()->withQueryString();
 
         return view('consultations.index', compact('visits', 'date', 'search', 'allDates', 'record'));

@@ -1,10 +1,10 @@
 <x-layout title="Medical certificates">
-    <a href="{{ route('consultations.show', [$patient, $visit]) }}" class="text-sm text-emerald-800 underline">Back to visit summary</a>
+    <x-back-link href="{{ route('consultations.show', [$patient, $visit]) }}">Back to visit summary</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">Medical certificates</h1>
     <p class="mt-3 font-semibold">{{ $patient->full_name }} · {{ $patient->patient_number }}</p>
     <p class="mt-1 text-sm text-slate-600">{{ $visit->visit_number }} · {{ $visit->visit_date->format('M j, Y') }} · {{ $visit->status }}</p>
     <p class="mt-4 max-w-3xl text-sm text-slate-600">Based on the two supplied MHO Calasiao forms. Review and edit the wording to reflect the examination actually performed. Saving prepares a printable copy; signature and official seal are applied through the RHU process.</p>
-    @if($errors->any())<div role="alert" class="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-red-800"><p class="font-semibold">Please correct the following:</p><ul class="list-disc pl-5">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+    @if($errors->any())<x-alert type="error" class="mt-5"><ul class="list-disc pl-5">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></x-alert>@endif
     @if($visit->status === 'OPEN')
         <form id="certificate-form" data-certificate-form method="POST" action="{{ route('certificates.store', [$patient, $visit]) }}" class="mt-6 max-w-4xl space-y-6 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8" x-data="{ template: @js(old('template', $template)), templates: @js($templates) }">
             @csrf
@@ -18,8 +18,8 @@
                 <p class="mt-2 text-sm text-slate-500">Changing the template does not overwrite your text. Use the button above to reset the wording.</p>
             </div>
             <div><label for="body" class="mb-2 block font-semibold">Certificate wording</label><textarea id="body" name="body" x-ref="body" rows="7" required maxlength="1800" class="w-full rounded-lg border border-slate-300 p-3">{{ old('body', $defaults['body']) }}</textarea><p class="mt-2 text-sm text-slate-500">Replace the blank line with the actual reason or examination conclusion. Fitness is never assumed automatically.</p></div>
-            <div><label for="request_text" class="mb-2 block font-semibold">Request / purpose paragraph</label><textarea id="request_text" name="request_text" rows="3" required maxlength="600" class="w-full rounded-lg border border-slate-300 p-3">{{ old('request_text', $defaults['request_text']) }}</textarea></div>
-            <div><label for="findings" class="mb-2 block font-semibold">Findings (optional)</label><textarea id="findings" name="findings" rows="3" maxlength="600" class="w-full rounded-lg border border-slate-300 p-3">{{ old('findings', $defaults['findings'] ?? '') }}</textarea></div>
+            <x-textarea name="request_text" label="Request / purpose paragraph" :value="$defaults['request_text']" rows="3" required maxlength="600" />
+            <x-textarea name="findings" label="Findings (optional)" :value="$defaults['findings'] ?? ''" rows="3" maxlength="600" />
             @if($examinationFindings)
                 <fieldset x-show="template === 'examination'">
                     <legend class="mb-3 font-semibold">Examination findings</legend>
@@ -33,7 +33,7 @@
                     </dl>
                 </fieldset>
             @endif
-            <div><label for="remarks" class="mb-2 block font-semibold">Remarks (optional)</label><textarea id="remarks" name="remarks" rows="3" maxlength="600" class="w-full rounded-lg border border-slate-300 p-3">{{ old('remarks', $defaults['remarks'] ?? '') }}</textarea></div>
+            <x-textarea name="remarks" label="Remarks (optional)" :value="$defaults['remarks'] ?? ''" rows="3" maxlength="600" />
             <fieldset><legend class="mb-3 font-semibold">Signing physician</legend><div class="grid gap-4 sm:grid-cols-2">
                 <div>
                     <label for="signatory_name" class="mb-2 block text-sm font-medium">Doctor's printed name</label>

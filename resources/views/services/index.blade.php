@@ -13,7 +13,7 @@
     }" x-init="@if($errors->any() && !$errors->has('delete')) $nextTick(() => $refs.serviceEditor.showModal()) @endif">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div><h1 class="text-3xl font-semibold">Existing services</h1><p class="mt-2 text-slate-600">Services are alphabetical within active and inactive groups, with Other RHU Service always last.</p></div>
-            <x-button type="button" @click="openEditor({ id: null, name: '', code: '', description: '', is_active: '1', url: '{{ route('services.store') }}' })">Add service</x-button>
+            <x-button type="button" x-on:click="openEditor({ id: null, name: '', code: '', description: '', is_active: '1', url: '{{ route('services.store') }}' })">Add service</x-button>
         </div>
         @error('delete')<x-alert type="error" title="Unable to delete service" class="mt-5">{{ $message }}</x-alert>@enderror
         <x-table-filters label="Search services" :filters="['status' => ['label' => 'Status', 'options' => ['active' => 'Active', 'inactive' => 'Inactive']]]" />
@@ -45,7 +45,7 @@
                 @if($errors->any() && !$errors->has('delete'))<div x-show="showErrors"><x-alert type="error">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</x-alert></div>@endif
                 <div><label for="name" class="mb-2 block text-sm font-medium">Service name (required)</label><input id="name" name="name" x-model="form.name" required maxlength="150" autofocus class="w-full rounded-lg border border-slate-300 p-3"></div>
                 <div><label for="code" class="mb-2 block text-sm font-medium">Code (required)</label><input id="code" name="code" x-model="form.code" required maxlength="50" pattern="[A-Z][A-Z0-9_]*" class="w-full rounded-lg border border-slate-300 p-3"><p class="mt-1 text-xs text-slate-500">Use a unique code with uppercase letters, numbers and underscores; start with a letter.</p></div>
-                <div><label for="description" class="mb-2 block text-sm font-medium">Description (optional)</label><textarea id="description" name="description" x-model="form.description" maxlength="1000" rows="3" class="w-full rounded-lg border border-slate-300 p-3"></textarea></div>
+                <x-textarea name="description" label="Description (optional)" x-model="form.description" maxlength="1000" rows="3" />
                 <div><label for="is_active" class="mb-2 block text-sm font-medium">Status</label><select id="is_active" name="is_active" x-model="form.is_active" class="w-full rounded-lg border border-slate-300 p-3"><option value="1">Active</option><option value="0">Inactive</option></select></div>
                 <div class="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 pt-5"><button type="button" x-show="form.id" @click="openDelete({ name: form.name, url: form.delete_url })" class="mr-auto rounded-lg px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50">Delete service</button><button type="button" @click="$refs.serviceEditor.close()" class="rounded-lg px-4 py-2 text-sm font-semibold hover:bg-slate-100">Cancel</button><x-button><span x-text="form.id ? 'Save changes' : 'Add service'"></span></x-button></div>
             </form>
