@@ -28,11 +28,28 @@ function startQueue(root) {
     }
 
     function size() {
-        if (!table) return;
+        if (!table) {
+            // Card histories should not reserve a large blank panel when empty
+            // or short; long histories still scroll within a bounded region.
+            viewport.style.height = 'auto';
+            viewport.style.maxHeight = 'min(640px, 75vh)';
+            const endSpace = viewport.querySelector('.queue-end-space');
+            if (endSpace) endSpace.style.display = !batches.at(-1).next ? 'none' : '';
+            return;
+        }
         const rows = [...items.children].slice(0, 10);
         // Ten normal table rows; allow unusually tall rows to remain readable.
-        const rowsHeight = rows.reduce((height, row) => height + row.getBoundingClientRect().height, 0) + (10 - rows.length) * 70;
+        const rowsHeight = rows.reduce((height, row) => height + row.getBoundingClientRect().height, 0);
         const head = viewport.querySelector('thead')?.getBoundingClientRect().height || 44;
+        const completeShortList = !batches[0].previous && !batches.at(-1).next && items.children.length <= 10;
+        const endSpace = viewport.querySelector('.queue-end-space');
+        if (endSpace) endSpace.style.display = completeShortList ? 'none' : '';
+        if (completeShortList) {
+            // A patient profile may place history below the screen. Let the
+            // page scroll instead of clipping a short history to one row.
+            viewport.style.height = 'auto';
+            return;
+        }
         // Reserve space for the controls and enclosing page padding, rather
         // than pushing the bottom of the table below the browser window.
         let trailingSpace = root.getBoundingClientRect().bottom - viewport.getBoundingClientRect().bottom;
@@ -94,14 +111,17 @@ function startQueue(root) {
             lastTop = viewport.scrollTop;
             requestAnimationFrame(() => { suppressScroll = false; viewport.style.scrollBehavior = ''; });
             status.textContent = batches.at(-1).next ? 'Scroll for more records.' : 'End of records.';
+            // The manual link stays visually hidden (keyboard focus still reveals it) unless it is needed to retry.
+            nextButton.classList.add('sr-only');
         } catch (error) {
             if (error.name !== 'AbortError') {
                 failed = true;
-                status.textContent = 'Unable to load records. Use Load more / Load earlier to retry, or refresh if your session changed.';
+                status.textContent = 'Unable to load records. Use Load more records / Load earlier records to retry, or refresh if your session changed.';
+                nextButton.classList.remove('sr-only');
             }
         } finally {
             busy = false;
-            if (alive) controls();
+            if (alive) { controls(); size(); }
         }
     }
     nextButton.addEventListener('click', event => { event.preventDefault(); load('next'); });
