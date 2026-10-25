@@ -43,7 +43,7 @@ class VisitCompletionController extends Controller
                 throw ValidationException::withMessages(['visit' => 'Visit records changed. Reload and review the latest service status before completing.']);
             }
             if ($review['blocked']) {
-                throw ValidationException::withMessages(['visit' => 'Issue the prescription draft and resolve pending laboratory services before completing.']);
+                throw ValidationException::withMessages(['visit' => 'Resolve pending reassessment requests and laboratory services, and issue prescription drafts before completing.']);
             }
             if ($review['unreleased'] && trim($data['completion_remarks'] ?? '') === '') {
                 throw ValidationException::withMessages(['completion_remarks' => 'Explain why the visit is ending with unreleased medicines, after checking with Pharmacy.']);
@@ -68,18 +68,20 @@ class VisitCompletionController extends Controller
         $unreleased = $prescription?->status === 'ISSUED'
             && collect(DispensingQuantities::forPrescription($prescription))->contains(fn ($line) => $line['remaining'] > 0);
         $pendingLabs = $visit->laboratoryRecords->where('availability_status', 'PENDING')->count();
+        $pendingAssessments = $visit->assessmentRequests()->where('status', 'PENDING')->count();
         $draft = $prescription?->status === 'DRAFT';
         $version = hash('sha256', json_encode([
             $visit->id, $visit->status, $prescription?->id, $prescription?->lock_version,
             $visit->laboratoryRecords->sortBy('id')->map->only(['id', 'availability_status', 'lock_version'])->values()->all(),
             $visit->treatmentRecord?->lock_version, $visit->vitalSign?->lock_version, $visit->eligibilityCheck?->lock_version,
             $visit->dispositionRecords()->count(),
+            $visit->assessmentRequests()->orderBy('id')->get(['id', 'status'])->toArray(),
             $visit->midwifeCareRecords->sortBy('id')->map->only(['id', 'lock_version'])->values()->all(),
             $visit->vaccinationRecords->sortBy('id')->map->only(['id', 'lock_version'])->values()->all(),
         ]));
 
         return ['midwifeCareCount' => $visit->midwifeCareRecords->count(), 'vaccinationCount' => $visit->vaccinationRecords->count(), 'version' => $version, 'draft' => $draft, 'unreleased' => $unreleased,
-            'pendingLabs' => $pendingLabs, 'blocked' => $draft || $pendingLabs > 0,
+            'pendingLabs' => $pendingLabs, 'pendingAssessments' => $pendingAssessments, 'blocked' => $draft || $pendingLabs > 0 || $pendingAssessments > 0,
             'pharmacy' => ! $prescription ? 'No prescription recorded' : ($draft ? 'Draft: not yet sent to Pharmacy' : ($unreleased ? 'Issued: medicines remain unreleased' : 'Issued: all prescribed quantities released'))];
     }
 }

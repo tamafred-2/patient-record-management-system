@@ -16,7 +16,7 @@ class DispositionController extends Controller
     {
         Gate::authorize('dispositions.view');
         $visit = $patient->visits()->findOrFail($visit);
-        $records = $visit->dispositionRecords()->latest('id')->paginate(15);
+        $records = $visit->dispositionRecords()->latest('id')->scrollPaginate();
 
         return view('dispositions.show', compact('patient', 'visit', 'records'));
     }

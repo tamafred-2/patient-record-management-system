@@ -15,7 +15,7 @@ class HistoryController extends Controller
         if ($clinical) {
             $query->with(['vitalSign', 'eligibilityCheck', 'treatmentRecord', 'prescription.dispensings', 'laboratoryRecords', 'dispositionRecords']);
         }
-        $visits = $query->orderByDesc('visit_date')->orderByDesc('id')->paginate(10);
+        $visits = $query->orderByDesc('visit_date')->orderByDesc('id')->scrollPaginate();
 
         return view('patients.timeline', compact('patient', 'visits', 'clinical'));
     }

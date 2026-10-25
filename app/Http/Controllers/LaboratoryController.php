@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\LaboratoryRecord;
 use App\Models\Patient;
+use App\Models\User;
 use App\Models\Visit;
+use App\Support\WorkflowAlerts;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -16,12 +18,12 @@ class LaboratoryController extends Controller
     public function index(Request $request)
     {
         Gate::authorize('laboratory.view');
-        $data = $request->validate(['all' => ['sometimes', 'boolean'], 'date' => ['nullable', 'date_format:Y-m-d'], 'search' => ['nullable', 'string', 'max:100'], 'record' => ['nullable', Rule::in(['all', 'with_records'])]]);
+        $data = $request->validate(['all' => ['sometimes', 'boolean'], 'date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()], 'search' => ['nullable', 'string', 'max:100'], 'record' => ['nullable', Rule::in(['all', 'with_records'])]]);
         $allDates = (bool) ($data['all'] ?? false);
         $date = $data['date'] ?? now('Asia/Manila')->toDateString();
         $search = trim($data['search'] ?? '');
         $record = $data['record'] ?? 'all';
-        $visits = Visit::with(['patient', 'service'])->withCount('laboratoryRecords')->whereHas('patient')->when($record === 'with_records', fn ($query) => $query->whereHas('laboratoryRecords'))->when(! $allDates, fn ($query) => $query->whereDate('visit_date', $date))->searchPatientOrQueue($search)->latest('id')->paginate(20)->withQueryString();
+        $visits = Visit::with(['patient', 'service'])->withCount('laboratoryRecords')->whereHas('patient')->when($record === 'with_records', fn ($query) => $query->whereHas('laboratoryRecords'))->when(! $allDates, fn ($query) => $query->whereDate('visit_date', $date))->searchPatientOrQueue($search)->priorityFirst()->scrollPaginate()->withQueryString();
 
         return view('laboratory.index', compact('allDates', 'search', 'date', 'visits', 'record'));
     }
@@ -30,7 +32,7 @@ class LaboratoryController extends Controller
     {
         Gate::authorize('laboratory.view');
         $visit = $patient->visits()->with('service')->findOrFail($visit);
-        $records = $visit->laboratoryRecords()->latest('id')->paginate(15);
+        $records = $visit->laboratoryRecords()->with(['authorizingDoctor', 'requester', 'followupAuthorization.doctor', 'nurseAuthorization'])->latest('id')->scrollPaginate();
 
         return view('laboratory.show', compact('patient', 'visit', 'records'));
     }
@@ -88,7 +90,7 @@ class LaboratoryController extends Controller
             'lock_version' => ['required', 'integer', 'min:0'],
             'submission_token' => $record === null ? ['required', 'uuid'] : ['prohibited'],
         ];
-        foreach (['patient_id', 'visit_id', 'created_by', 'updated_by', 'performed_by', 'performed_at', 'completed_at', 'result_notes'] as $field) {
+        foreach (['patient_id', 'visit_id', 'created_by', 'updated_by', 'performed_by', 'performed_at', 'completed_at', 'result_notes', 'authorizing_doctor_id', 'followup_authorization_id', 'request_reason'] as $field) {
             $rules[$field] = ['prohibited'];
         }
         $data = $request->validate($rules);
@@ -98,6 +100,9 @@ class LaboratoryController extends Controller
                 throw ValidationException::withMessages(['visit' => 'Only open visits can have laboratory records changed.']);
             }
             $entry = $record === null ? null : $visit->laboratoryRecords()->findOrFail($record);
+            if ($entry?->authorizing_doctor_id && $entry->test_name !== $data['test_name']) {
+                throw ValidationException::withMessages(['test_name' => 'The authorized test cannot be changed. Ask the doctor to review the request.']);
+            }
             if ((int) $data['lock_version'] !== ($entry?->lock_version ?? 0)) {
                 throw ValidationException::withMessages(['lock_version' => 'This record changed. Reload and review the latest values.']);
             }
@@ -105,6 +110,7 @@ class LaboratoryController extends Controller
                 throw ValidationException::withMessages(['submission_token' => 'This submission was already saved. Review the visit records before adding another.']);
             }
             $creating = ! $entry;
+            $wasPending = $entry?->availability_status === 'PENDING';
             $entry ??= new LaboratoryRecord;
             if ($creating) {
                 $entry->visit_id = $visit->id;
@@ -127,6 +133,10 @@ class LaboratoryController extends Controller
             $entry->lock_version = (int) $data['lock_version'] + 1;
             $entry->save();
             activity('laboratory')->causedBy($request->user())->performedOn($entry)->withProperties(['visit_id' => $visit->id, 'version' => $entry->lock_version])->log($creating ? 'laboratory.created' : 'laboratory.updated');
+            // The ordering doctor hears once, when a pending request is completed or referred out.
+            if ($wasPending && $entry->availability_status !== 'PENDING' && $entry->authorizing_doctor_id) {
+                WorkflowAlerts::send('lab_completed', $visit, [User::find($entry->authorizing_doctor_id)], $request->user(), ['laboratory_record_ids' => [$entry->id]]);
+            }
         });
 
         return redirect()->route('laboratory.show', [$patient, $visit])->with('status', 'Laboratory service record saved.');

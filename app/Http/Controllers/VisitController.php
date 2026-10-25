@@ -7,6 +7,7 @@ use App\Models\Service;
 use App\Models\User;
 use App\Models\Visit;
 use App\Services\QueueNumbers;
+use App\Support\WorkflowAlerts;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,8 +24,8 @@ class VisitController extends Controller
         $input = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
             'all' => ['sometimes', 'boolean'],
-            'from' => ['nullable', 'date_format:Y-m-d'],
-            'to' => ['nullable', 'date_format:Y-m-d'],
+            'from' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()],
+            'to' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()],
         ]);
         $search = trim($input['search'] ?? '');
         $allDates = (bool) ($input['all'] ?? false);
@@ -35,7 +36,7 @@ class VisitController extends Controller
         }
         $visits = Visit::with(['patient', 'service'])->whereHas('patient')
             ->when(! $allDates, fn ($query) => $query->whereDate('visit_date', '>=', $from)->whereDate('visit_date', '<=', $to))
-            ->searchPatientOrQueue($search)->orderByDesc('visit_date')->latest('id')->paginate(20)->withQueryString();
+            ->searchPatientOrQueue($search)->orderByDesc('visit_date')->priorityFirst()->scrollPaginate()->withQueryString();
 
         return view('visits.index', compact('visits', 'today', 'from', 'to', 'search', 'allDates'));
     }
@@ -68,13 +69,18 @@ class VisitController extends Controller
     public function store(Request $request, Patient $patient)
     {
         Gate::authorize('create', [Visit::class, $patient]);
+        $request->mergeIfMissing(['priority' => 'REGULAR']);
         $data = $request->validate([
             'service_id' => ['required', 'integer', Rule::exists('services', 'id')->where('is_active', true)->whereNull('deleted_at')],
             'visit_date' => ['required', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()],
             'queue_token' => ['nullable', 'uuid'],
             'patient_id' => ['prohibited'], 'visit_number' => ['prohibited'],
             'created_by' => ['prohibited'], 'status' => ['prohibited'], 'completed_at' => ['prohibited'], 'completed_by' => ['prohibited'], 'completion_remarks' => ['prohibited'],
-        ]);
+            'priority_rank' => ['prohibited'],
+        ] + Visit::priorityRules());
+        if ($data['priority'] !== 'REGULAR') {
+            Gate::authorize('visits.prioritize');
+        }
         if ($patient->birth_date && $data['visit_date'] < $patient->birth_date->toDateString()) {
             throw ValidationException::withMessages(['visit_date' => 'The visit date cannot be before the patient’s birth date.']);
         }
@@ -105,12 +111,18 @@ class VisitController extends Controller
             $visit->queue_reference = $reservation->queue_reference;
             $visit->created_by = $request->user()->id;
             $visit->status = 'OPEN';
+            $visit->applyPriority($data);
             $visit->save();
             $visit->visit_number = 'V-'.str_replace('-', '', $data['visit_date']).'-'.str_pad((string) $visit->id, 4, '0', STR_PAD_LEFT);
             $visit->save();
             activity('visits')->causedBy($request->user())->performedOn($visit)
-                ->withProperties(['patient_id' => $patient->id, 'service_id' => $service->id, 'status' => 'OPEN'])->log('visit.created');
+                ->withProperties(['patient_id' => $patient->id, 'service_id' => $service->id, 'status' => 'OPEN', 'priority' => $visit->priority, 'priority_reason' => $visit->priority_reason])->log('visit.created');
             DB::table('queue_reservations')->where('id', $reservation->id)->update(['visit_id' => $visit->id]);
+            if ($visit->priority === 'EMERGENCY') {
+                WorkflowAlerts::emergency($visit, $request->user());
+            } else {
+                WorkflowAlerts::send('visit_waiting', $visit, WorkflowAlerts::nurses()->merge(WorkflowAlerts::midwivesFor($visit)), $request->user());
+            }
 
             return $visit;
         }, 5);

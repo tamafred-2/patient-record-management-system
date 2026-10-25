@@ -29,7 +29,7 @@ class PatientController extends Controller
             });
         }
 
-        return view('patients.index', ['patients' => $query->orderBy('last_name')->orderBy('first_name')->orderBy('id')->paginate(20)->withQueryString(), 'search' => $search]);
+        return view('patients.index', ['patients' => $query->orderBy('last_name')->orderBy('first_name')->orderBy('id')->scrollPaginate()->withQueryString(), 'search' => $search]);
     }
 
     public function create()
@@ -43,6 +43,11 @@ class PatientController extends Controller
     {
         $data = Arr::only($request->validated(), Patient::DEMOGRAPHICS);
         $key = Patient::duplicateKey($data['first_name'], $data['last_name']);
+        $exactMatch = Patient::where('duplicate_key', $key)->lazyById()
+            ->first(fn (Patient $candidate) => $candidate->hasSameDemographics($data));
+        if ($exactMatch) {
+            return response()->view('patients.form', ['patient' => new Patient($data), 'duplicates' => collect([$exactMatch]), 'exactDuplicate' => true], 422);
+        }
         $matches = Patient::where('duplicate_key', $key)->limit(10)->get();
         if ($matches->isNotEmpty() && ! $request->boolean('confirm_distinct')) {
             return response()->view('patients.form', ['patient' => new Patient($data), 'duplicates' => $matches], 422);
@@ -69,7 +74,7 @@ class PatientController extends Controller
         Gate::authorize('view', $patient);
 
         $visits = Gate::allows('viewAny', Visit::class)
-            ? $patient->visits()->with('service')->orderByDesc('visit_date')->orderByDesc('id')->paginate(10)
+            ? $patient->visits()->with('service')->orderByDesc('visit_date')->orderByDesc('id')->scrollPaginate()
             : null;
 
         return view('patients.show', compact('patient', 'visits'));
@@ -86,6 +91,15 @@ class PatientController extends Controller
     {
         $data = Arr::only($request->validated(), Patient::DEMOGRAPHICS);
         $key = Patient::duplicateKey($data['first_name'], $data['last_name']);
+        $proposed = array_replace($patient->only(Patient::DEMOGRAPHICS), $data);
+        $exactMatch = Patient::where('duplicate_key', $key)->where('id', '!=', $patient->id)->lazyById()
+            ->first(fn (Patient $candidate) => $candidate->hasSameDemographics($proposed));
+        if ($exactMatch) {
+            $patient->fill($data);
+            $patient->lock_version = $request->integer('lock_version');
+
+            return response()->view('patients.form', ['patient' => $patient, 'duplicates' => collect([$exactMatch]), 'exactDuplicate' => true], 422);
+        }
         $matches = Patient::where('duplicate_key', $key)->where('id', '!=', $patient->id)->limit(10)->get();
         if ($matches->isNotEmpty() && ! $request->boolean('confirm_distinct')) {
             $patient->fill($data);

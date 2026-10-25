@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\LaboratoryRecord;
 use App\Models\MidwifeCareRecord;
+use App\Models\NurseAuthorization;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\Service;
 use App\Models\VaccinationRecord;
 use App\Models\Visit;
+use App\Support\FollowupAccess;
+use App\Support\FollowUpReminders;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -51,19 +54,20 @@ class DashboardController extends Controller
         if (! $overview && Gate::allows('vitals.view')) {
             $saved = (clone $todayVisitQuery())->has('vitalSign')->count();
             if (! collect($summaryCards)->contains(fn ($card) => $card[0] === 'Visits today')) {
-                $summaryCards[] = ['Visits today', (clone $todayVisitQuery())->count(), 'All registered visits for today', '#today-assessments'];
+                $summaryCards[] = [Gate::allows('consultations.view') ? 'Assessment visits today' : 'Visits today', (clone $todayVisitQuery())->count(), 'All registered visits for today', '#today-assessments'];
             }
             $monthStart = now('Asia/Manila')->startOfMonth()->toDateString();
             $monthlyAssessments = Visit::whereHas('patient')->whereDate('visit_date', '>=', $monthStart)->whereDate('visit_date', '<=', $today)->has('vitalSign')->count();
             $summaryCards[] = ['Assessed this month', $monthlyAssessments, "This month's assessments", Gate::allows('analytics.view') ? route('analytics.index', ['from' => $monthStart, 'to' => $today]) : '#today-assessments'];
             $summaryCards[] = ['Assessed today', $saved, 'Visits with saved initial assessment', '#today-assessments'];
             $summaryCards[] = ['Not yet assessed', (clone $todayVisitQuery())->count() - $saved, 'No assessment recorded', '#today-assessments'];
+            $summaryCards[] = ['Reassessment requests', Visit::whereHas('patient')->where('status', 'OPEN')->has('pendingAssessmentRequest')->count(), 'Pending requests across all dates', route('assessments.index', ['reassessment' => 1])];
         }
         if (! $overview && Gate::allows('consultations.view')) {
-            $allVisits = Visit::whereHas('patient');
+            $allVisits = Visit::whereHas('patient')->has('vitalSign');
             $saved = (clone $allVisits)->has('treatmentRecord')->count();
             if (! collect($summaryCards)->contains(fn ($card) => $card[0] === 'Visits today')) {
-                $summaryCards[] = ['Visits today', (clone $todayVisitQuery())->count(), "Today's registered visits", '#today-visits'];
+                $summaryCards[] = ['Visits today', (clone $todayVisitQuery())->has('vitalSign')->count(), "Today's visits with recorded vital signs", '#today-visits'];
             }
             $summaryCards[] = ['ITRs saved', $saved, 'All dates', route('consultations.index', ['all' => 1, 'record' => 'with_itr'])];
             $summaryCards[] = ['Without saved ITR', (clone $allVisits)->count() - $saved, 'All dates · No ITR recorded', route('consultations.index', ['all' => 1, 'record' => 'without_itr'])];
@@ -95,7 +99,7 @@ class DashboardController extends Controller
         }
 
         $todayVisits = (Gate::allows('viewAny', Visit::class) || Gate::allows('analytics.overview') || Gate::allows('consultations.view'))
-            ? $this->visitQuery($search, $serviceId)->cursorPaginate(20)->withQueryString() : null;
+            ? $this->visitQuery($search, $serviceId)->cursorPaginate(10)->withQueryString() : null;
         $todayVisitsTotal = $todayVisits !== null ? $this->visitQuery($search, $serviceId)->count() : 0;
         $nextVisitsUrl = $todayVisits?->hasMorePages() ? route('dashboard.visits', array_filter(['search' => $search, 'service_id' => $serviceId, 'cursor' => $todayVisits->nextCursor()->encode()])) : null;
 
@@ -108,7 +112,7 @@ class DashboardController extends Controller
             }
             $query = $this->sectionQuery($section, $search);
             $departmentTotals[$section] = (clone $query)->count();
-            $batch = $query->cursorPaginate(20, ['*'], $section.'_cursor');
+            $batch = $query->cursorPaginate(10, ['*'], $section.'_cursor');
             $departmentBatches[$section] = $batch;
             $departmentNext[$section] = $batch->hasMorePages() ? route('dashboard.visits', array_filter(['section' => $section, 'search' => $search, 'cursor' => $batch->nextCursor()->encode()])) : null;
         }
@@ -134,14 +138,22 @@ class DashboardController extends Controller
         }
         unset($card);
 
-        return view('dashboard', compact('summaryCards', 'today', 'todayVisits', 'todayVisitsTotal', 'nextVisitsUrl', 'serviceId', 'todayPharmacy', 'todayVaccinations', 'todayMidwifeCare', 'search', 'todayAssessments', 'todayLaboratory', 'departmentBatches', 'departmentTotals', 'departmentNext'));
+        FollowUpReminders::dispatchDue();
+        $followUps = Gate::allows('viewAny', Visit::class) || Gate::allows('consultations.view')
+            ? FollowUpReminders::outstanding()->with('followUpSetter')->whereDate('follow_up_on', '<=', now('Asia/Manila')->addDays(7)->toDateString())->orderBy('follow_up_on')->limit(30)->get() : collect();
+        $nurse = auth()->user();
+        $nurseOrdering = FollowupAccess::nurse($nurse)
+            ? Visit::whereHas('patient')->orderableBy($nurse, (bool) NurseAuthorization::activeFor($nurse)?->usable())->count() : 0;
+
+        return view('dashboard', compact('nurseOrdering', 'followUps', 'summaryCards', 'today', 'todayVisits', 'todayVisitsTotal', 'nextVisitsUrl', 'serviceId', 'todayPharmacy', 'todayVaccinations', 'todayMidwifeCare', 'search', 'todayAssessments', 'todayLaboratory', 'departmentBatches', 'departmentTotals', 'departmentNext'));
     }
 
-    private function visitQuery(string $search, ?int $serviceId)
+    private function visitQuery(string $search, ?int $serviceId, bool $doctorList = true)
     {
         return Visit::with(['patient', 'service' => fn ($query) => $query->withTrashed()])->whereHas('patient')->whereDate('visit_date', now('Asia/Manila')->toDateString())
+            ->when($doctorList && Gate::allows('consultations.view') && ! Gate::allows('viewAny', Visit::class) && ! Gate::allows('analytics.overview'), fn ($query) => $query->has('vitalSign'))
             ->when($serviceId, fn ($query) => $query->where('service_id', $serviceId))
-            ->searchPatientOrQueue($search)->latest('id');
+            ->searchPatientOrQueue($search)->priorityFirst();
     }
 
     private function allowsSection(string $section): bool
@@ -159,9 +171,10 @@ class DashboardController extends Controller
 
     private function sectionQuery(string $section, string $search)
     {
-        $query = $this->visitQuery($search, null);
+        $query = $this->visitQuery($search, null, false);
 
         return match ($section) {
+            'assessments' => $query->with('pendingAssessmentRequest'),
             'pharmacy' => $query->with('prescription')->whereHas('prescription', fn ($prescription) => $prescription->where('status', 'ISSUED')),
             'midwife' => $query->midwifeCareVisits()->withCount('midwifeCareRecords'),
             'vaccinations' => $query->vaccinationVisits()->withCount('vaccinationRecords'),
@@ -177,11 +190,13 @@ class DashboardController extends Controller
         abort_unless($this->allowsSection($section), 403);
         $search = trim($input['search'] ?? '');
         $query = $section === 'visits' ? $this->visitQuery($search, $input['service_id'] ?? null) : $this->sectionQuery($section, $search);
-        $visits = $query->cursorPaginate(20)->withQueryString();
+        $visits = $query->cursorPaginate(10)->withQueryString();
 
         return response()->json([
             'html' => view($section === 'visits' ? 'visits.rows' : 'dashboard.department-rows', ['sectionType' => $section, 'visits' => $visits, 'dashboardActions' => Gate::allows('consultations.view') || Gate::allows('eligibility.view')])->render(),
             'next' => $visits->nextPageUrl(),
+            'previous' => $visits->previousPageUrl(),
+            'count' => $visits->count(),
         ]);
     }
 }

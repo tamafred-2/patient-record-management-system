@@ -19,10 +19,11 @@ class PasswordController extends Controller
         return view('auth.change-password');
     }
 
-    private function rules(): array
+    // A forced change follows sign-in with the admin-issued temporary password, so it is not asked for again.
+    private function rules(bool $forced): array
     {
         return [
-            'current_password' => ['required', 'string', 'max:1024'],
+            'current_password' => $forced ? ['nullable'] : ['required', 'string', 'max:1024'],
             'password' => ['required', 'string', 'confirmed', Password::min(8), 'max:72', function ($attribute, $value, $fail) {
                 if (str_contains($value, "\0")) {
                     $fail('The password cannot contain null characters.');
@@ -82,10 +83,11 @@ class PasswordController extends Controller
 
     public function update(Request $request)
     {
-        $data = $request->validate($this->rules());
+        $data = $request->validate($this->rules((bool) $request->user()->must_change_password));
         $user = DB::transaction(function () use ($request, $data) {
             $user = User::whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
-            if ($user->password_version !== (int) $request->session()->get('auth_password_version', 0) || ! Hash::check($data['current_password'], $user->password)) {
+            $currentConfirmed = $user->must_change_password || Hash::check((string) ($data['current_password'] ?? ''), $user->password);
+            if ($user->password_version !== (int) $request->session()->get('auth_password_version', 0) || ! $currentConfirmed) {
                 throw ValidationException::withMessages(['current_password' => 'Your current password is incorrect or has changed. Sign in again if needed.']);
             }
             $this->rotate($user, $data['password'], false);
