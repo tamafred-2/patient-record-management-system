@@ -102,7 +102,8 @@ class FollowupTest extends TestCase
         $this->get(route('nurse-authorizations.index'))->assertSeeInOrder([$this->nurse->name, 'On', 'Urinalysis', $this->doctor->name]);
         $this->get(route('nurse-authorizations.show', $this->nurse))->assertSee('aria-checked="true"', false)->assertSee('Permitted tests:')->assertSee('Change history');
 
-        $this->actingAs($this->nurse)->get('/assessments?authorized=1')->assertOk()->assertSee($this->visit->visit_number)->assertViewHas('authorizedCount', $this->assessedOpenVisits())->assertSee('Order follow-up tests');
+        $this->actingAs($this->nurse)->get('/assessments?authorized=1')->assertOk()->assertSee($this->visit->visit_number)->assertViewHas('visits', fn ($visits) => $visits->total() === $this->assessedOpenVisits())->assertSee('Order follow-up tests')
+            ->assertDontSee('Your authorized follow-up visits:')->assertDontSee('Pending reassessment requests:');
         $this->get($this->url('show'))->assertOk()->assertSee('Authorized by '.$this->doctor->name)->assertSee('Fictional standing instructions.');
         $this->post($this->url('request'), $this->payload())->assertSessionHasNoErrors();
         $entry = LaboratoryRecord::where('nurse_authorization_id', $authority->id)->sole();
@@ -126,12 +127,14 @@ class FollowupTest extends TestCase
     public function test_authorization_applies_to_every_patient_the_nurse_assessed_until_turned_off(): void
     {
         $authority = $this->enable(['test_scope' => 'SELECTED', 'allowed_tests' => ['Urinalysis', 'Complete blood count (CBC)']]);
+        $this->travel(2)->years();
+        $this->assertTrue($authority->fresh()->usable(), 'Standing authority has no automatic expiry.');
         $other = Visit::where('patient_id', '!=', $this->visit->patient_id)->firstOrFail();
         $other->status = 'OPEN';
         $other->save();
         $this->assess($other);
         $this->assertGreaterThanOrEqual(2, $this->assessedOpenVisits());
-        $this->actingAs($this->nurse)->get('/dashboard')->assertSee('You can order laboratory tests for '.$this->assessedOpenVisits().' visits');
+        $this->actingAs($this->nurse)->get('/dashboard')->assertOk()->assertDontSee('You can order laboratory tests')->assertDontSee('Open authorized visits');
         $this->post($this->url('request'), $this->payload(null, ['Urinalysis']))->assertSessionHasNoErrors();
         $this->post($this->url('request', null, $other), $this->payload(null, ['Complete blood count (CBC)'], $other))->assertSessionHasNoErrors();
         $this->post($this->url('request'), $this->payload(null, ['Complete blood count (CBC)']))->assertSessionHasNoErrors();
@@ -142,7 +145,7 @@ class FollowupTest extends TestCase
         $this->actingAs($this->nurse)->get($this->url('show'))->assertSee('You are not currently authorized to order laboratory tests.');
         $this->post($this->url('request', null, $other), $this->payload(null, ['Urinalysis'], $other))->assertSessionHasErrors('followup');
         $this->assertSame(3, LaboratoryRecord::where('nurse_authorization_id', $authority->id)->count());
-        $this->get('/assessments?authorized=1')->assertViewHas('authorizedCount', 0);
+        $this->get('/assessments?authorized=1')->assertViewHas('visits', fn ($visits) => $visits->isEmpty());
     }
 
     public function test_doctor_can_request_directly_and_repeat_submission_is_rejected(): void
@@ -194,7 +197,7 @@ class FollowupTest extends TestCase
         $this->doctor->is_active = false;
         $this->doctor->save();
         $this->actingAs($this->nurse)->post($this->url('request'), $this->payload())->assertSessionHasErrors('followup');
-        $this->get('/assessments?authorized=1')->assertViewHas('authorizedCount', 0);
+        $this->get('/assessments?authorized=1')->assertViewHas('visits', fn ($visits) => $visits->isEmpty());
         $second = User::factory()->create(['is_active' => true]);
         $second->assignRole('Doctor / Medical Officer');
         $this->actingAs($second)->get(route('nurse-authorizations.index'))->assertSee('On · not usable');
@@ -432,11 +435,11 @@ class FollowupTest extends TestCase
     public function test_legacy_grant_counts_only_where_the_nurse_saved_the_assessment(): void
     {
         $this->legacyGrant();
-        $this->actingAs($this->nurse)->get('/assessments?authorized=1')->assertViewHas('authorizedCount', 1);
+        $this->actingAs($this->nurse)->get('/assessments?authorized=1')->assertViewHas('visits', fn ($visits) => $visits->total() === 1);
         $vital = $this->visit->fresh()->vitalSign;
         $vital->recorded_by = $vital->updated_by = $this->doctor->id;
         $vital->save();
-        $this->get('/assessments?authorized=1')->assertViewHas('authorizedCount', 0);
+        $this->get('/assessments?authorized=1')->assertViewHas('visits', fn ($visits) => $visits->isEmpty());
         $this->get('/dashboard')->assertDontSee('You can order laboratory tests');
     }
 

@@ -38,9 +38,12 @@ class ExampleRecordsSeederTest extends TestCase
         }
         $visit = Visit::where('visit_number', 'EXAMPLE-VISIT-RELEASED')->firstOrFail();
         $this->assertCount(2, $visit->patient->visits);
-        foreach (['doctor' => 'consultations.show', 'nurse' => 'assessments.edit', 'admin' => 'eligibility.edit', 'pharmacist' => 'pharmacy.show', 'medtech' => 'laboratory.show'] as $role => $route) {
+        foreach (['doctor' => 'consultations.show', 'nurse' => 'assessments.edit', 'admin' => 'eligibility.edit', 'pharmacist' => 'pharmacy.show'] as $role => $route) {
             $this->actingAs(User::where('email', $role.'@rhu.test')->firstOrFail())->get(route($route, [$visit->patient, $visit]))->assertOk();
         }
+        $this->actingAs(User::where('email', 'medtech@rhu.test')->firstOrFail())->get(route('laboratory.show', [$visit->patient, $visit]))->assertNotFound();
+        $labVisit = Visit::whereHas('laboratoryRecords')->firstOrFail();
+        $this->get(route('laboratory.show', [$labVisit->patient, $labVisit]))->assertOk();
         $this->actingAs(User::where('email', 'doctor@rhu.test')->firstOrFail());
         $this->get(route('visits.pdf', [$visit->patient, $visit]))->assertOk()->assertHeader('content-type', 'application/pdf');
         $this->get(route('history.show', $visit->patient))->assertOk()->assertSee('Medicine release recorded');

@@ -8,6 +8,7 @@ test('one fictional patient passes through all implemented operational roles', a
     if (context) await context.close();
     context = await browser.newContext({ baseURL });
     const page = await context.newPage();
+    page.setDefaultTimeout(15000);
     page.on('pageerror', error => errors.push(error.message));
     await page.goto('/login');
     await page.getByLabel('Email address').fill(role + '@rhu.test');
@@ -68,12 +69,15 @@ test('one fictional patient passes through all implemented operational roles', a
     await diagnoses.fill('x'.repeat(151));
     await page.getByRole('button', { name: 'Done', exact: true }).click();
     await page.getByRole('button', { name: 'Save ITR', exact: true }).click();
-    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Some details need attention' })).toBeVisible();
     await expect(diagnoses).toHaveValue('x'.repeat(151));
-    await expect(page.getByRole('dialog')).toContainText('Each diagnosis must be no more than 150 characters.');
+    await expect(page.getByRole('dialog', { name: 'Some details need attention' })).toContainText('Each diagnosis must be no more than 150 characters.');
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({ path: 'storage/framework/testing/diagnoses-modal-mobile.png' });
     await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.getByRole('button', { name: 'Close diagnoses', exact: true }).click();
+    await page.getByRole('button', { name: 'Return to form', exact: true }).click();
+    await page.getByRole('button', { name: 'Edit diagnoses', exact: true }).click();
     await diagnoses.fill('Fictional journey condition');
     await page.getByRole('button', { name: 'Done', exact: true }).click();
     await page.getByRole('button', { name: 'Save ITR', exact: true }).click();
@@ -146,12 +150,20 @@ test('one fictional patient passes through all implemented operational roles', a
     await page.getByRole('button', { name: 'Save certificate request' }).click();
     await expect(page.getByText('Fictional journey request', { exact: true })).toBeVisible();
 
+    await page.goto('/followups/' + scope);
+    await page.getByRole('group', { name: 'Tests to order' }).getByRole('checkbox', { name: 'Complete blood count (CBC)', exact: true }).check();
+    await page.getByLabel('Follow-up findings and reason for test').fill('Fictional consultation laboratory order.');
+    await page.getByLabel('I reviewed the assessment and confirm this request to laboratory.').check();
+    await page.getByRole('button', { name: 'Send tests to laboratory' }).click();
+    await expect(page.getByRole('status')).toBeVisible();
+
     page = await asRole('medtech');
     await page.goto('/laboratory/' + scope);
-    await page.getByLabel('Requested test / service', { exact: true }).selectOption({ label: 'Complete blood count (CBC)' });
+    await page.getByRole('link', { name: 'Record results / update request', exact: true }).click();
     await page.getByLabel('Service status', { exact: true }).selectOption('EXTERNAL_ADVISED');
     await page.getByLabel('External laboratory advice', { exact: true }).fill('Fictional external advice only');
     await page.getByRole('button', { name: 'Save laboratory service' }).click();
+    await page.goto('/laboratory/' + scope);
     await expect(page.getByRole('heading', { name: 'Complete blood count (CBC)', exact: true })).toBeVisible();
 
     page = await asRole('pharmacist');

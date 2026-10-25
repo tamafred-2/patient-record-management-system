@@ -6,6 +6,7 @@ use App\Models\Patient;
 use App\Models\Service;
 use App\Models\User;
 use App\Models\Visit;
+use Carbon\CarbonImmutable;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
@@ -67,6 +68,48 @@ class VisitPriorityTest extends TestCase
         $visit = Visit::latest('id')->firstOrFail();
         $this->assertSame(['PRIORITY', 1, 'PWD'], [$visit->priority, $visit->priority_rank, $visit->priority_reason]);
         $this->assertSame('PRIORITY', Activity::where('description', 'visit.created')->latest('id')->firstOrFail()->properties['priority']);
+    }
+
+    public function test_seniors_default_to_priority_and_cannot_be_registered_or_changed_to_regular(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-25 10:00:00', 'Asia/Manila'));
+        $this->patient->update(['birth_date' => '1966-10-25']);
+        $this->actingAs($this->staff)->get(route('patients.visits.create', $this->patient))->assertOk()
+            ->assertSee('Age 60 or older on the visit date')
+            ->assertSee('value="REGULAR" x-model="level"  :disabled="senior" disabled', false);
+        $this->register([])->assertSessionHasNoErrors()->assertRedirect();
+        $visit = Visit::latest('id')->firstOrFail();
+        $this->assertSame(['PRIORITY', 1, 'SENIOR'], [$visit->priority, $visit->priority_rank, $visit->priority_reason]);
+        $this->get(route('visits.stub', [$this->patient, $visit]))->assertOk()->assertSee('Priority care')->assertSee('Senior citizen');
+        $this->register(['priority' => 'REGULAR'])->assertSessionHasErrors('priority');
+        $url = route('visits.priority', [$this->patient, $visit]);
+        $this->put($url, ['priority' => 'REGULAR'])->assertSessionHasErrors('priority');
+        $this->assertSame('PRIORITY', $visit->fresh()->priority);
+        $this->put($url, ['priority' => 'EMERGENCY'])->assertSessionHasNoErrors();
+        $this->get(route('visits.stub', [$this->patient, $visit]))->assertOk()->assertSee('Emergency care');
+        $this->put($url, ['priority' => 'PRIORITY'])->assertSessionHasNoErrors();
+        $this->assertSame('SENIOR', $visit->fresh()->priority_reason);
+        $this->register(['priority' => 'EMERGENCY'])->assertSessionHasNoErrors();
+        $this->assertSame('EMERGENCY', Visit::latest('id')->firstOrFail()->priority);
+    }
+
+    public function test_senior_threshold_uses_age_on_visit_date_and_does_not_rewrite_historical_stubs(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-25 10:00:00', 'Asia/Manila'));
+        $this->patient->update(['birth_date' => '1966-10-26']);
+        $this->register([])->assertSessionHasNoErrors();
+        $this->assertSame('REGULAR', Visit::latest('id')->firstOrFail()->priority);
+        $this->patient->update(['birth_date' => '1966-10-25']);
+        $this->post(route('patients.visits.store', $this->patient), [
+            'service_id' => Service::first()->id, 'visit_date' => '2026-10-24',
+        ])->assertSessionHasNoErrors();
+        $historical = Visit::latest('id')->firstOrFail();
+        $this->assertSame('REGULAR', $historical->priority);
+        $this->get(route('visits.stub', [$this->patient, $historical]))->assertOk()->assertSee('Regular')->assertDontSee('Priority care');
+        $this->assertSame('REGULAR', $historical->fresh()->priority);
+        $this->patient->update(['birth_date' => '1950-01-01']);
+        $this->register([])->assertSessionHasNoErrors();
+        $this->assertSame('SENIOR', Visit::latest('id')->firstOrFail()->priority_reason);
     }
 
     public function test_registration_validates_reason_note_and_tampered_rank(): void
