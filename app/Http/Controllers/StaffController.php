@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\AccountRetirement;
 use App\Support\AccountRoles;
+use App\Support\ListFilters;
 use App\Support\TableSearch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -18,7 +20,7 @@ class StaffController extends Controller
 {
     public function index(Request $request)
     {
-        $filters = $request->validate(['search' => ['nullable', 'string', 'max:100'], 'role' => ['nullable', Rule::in(array_keys(AccountRoles::ADDITIONAL))], 'status' => ['nullable', 'in:active,inactive'], 'activity' => ['nullable', 'in:recent,offline']]);
+        $filters = $request->validate(['search' => ListFilters::search(), 'role' => ['nullable', Rule::in(array_keys(AccountRoles::ADDITIONAL))], 'status' => ['nullable', 'in:active,inactive'], 'activity' => ['nullable', 'in:recent,offline']]);
         $query = User::with('roles');
         TableSearch::apply($query, $filters['search'] ?? '', ['name', 'email']);
         if (! empty($filters['role'])) {
@@ -130,6 +132,33 @@ class StaffController extends Controller
         });
 
         return redirect()->route('staff.index')->with('status', 'User access updated.');
+    }
+
+    public function retire(Request $request, User $user)
+    {
+        $data = $request->validate(['confirm' => ['accepted'], 'action' => ['required', 'in:deactivate,delete']]);
+        DB::transaction(function () use ($request, $user, $data) {
+            $user = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            if ($user->is($request->user())) {
+                throw ValidationException::withMessages(['account' => 'You cannot retire your own account.']);
+            }
+            if ($data['action'] === 'delete' && AccountRetirement::hasLinkedRecords($user)) {
+                throw ValidationException::withMessages(['account' => 'This account has linked records or activity history. Deactivate it to preserve attribution.']);
+            }
+            $before = ['is_active' => $user->is_active, 'roles' => $user->getRoleNames()->all()];
+            $user->is_active = false;
+            AccountRetirement::endSessions($user);
+            $user->syncRoles([]);
+            $user->syncPermissions([]);
+            activity('staff')->causedBy($request->user())->performedOn($user)
+                ->withProperties(['before' => $before, 'action' => $data['action']])->log('staff.retired');
+            if ($data['action'] === 'delete') {
+                $user->notifications()->delete();
+                $user->delete();
+            }
+        });
+
+        return redirect()->route('staff.index')->with('status', $data['action'] === 'delete' ? 'Unlinked account deleted.' : 'Account deactivated and all roles and direct permissions removed.');
     }
 
     private function validateRoleSelection(string $primary, array $roles): void
