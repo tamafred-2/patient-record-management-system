@@ -156,16 +156,16 @@ class LaboratoryTest extends TestCase
 
     public function test_denied_roles_read_only_and_clinical_boundary(): void
     {
-        $this->get('/patients')->assertForbidden();
-        $this->get(route('itr.edit', [$this->patient, $this->visit]))->assertForbidden();
+        $this->getJson('/patients')->assertForbidden();
+        $this->getJson(route('itr.edit', [$this->patient, $this->visit]))->assertForbidden();
         $this->post($this->url(), $this->data())->assertSessionHasNoErrors();
         $record = LaboratoryRecord::firstOrFail();
         foreach (['System Admin', 'Information Staff', 'Nurse', 'Doctor / Medical Officer', 'Pharmacist', 'Midwife'] as $role) {
             $user = User::factory()->create();
             $user->assignRole($role);
             $this->actingAs($user);
-            $this->get('/laboratory')->assertForbidden();
-            $this->get($this->url())->assertForbidden();
+            $this->getJson('/laboratory')->assertForbidden();
+            $this->getJson($this->url())->assertForbidden();
             $this->post($this->url(), $this->data())->assertForbidden();
             $this->put(route('laboratory.update', [$this->patient, $this->visit, $record]), ['lock_version' => 1])->assertForbidden();
         }

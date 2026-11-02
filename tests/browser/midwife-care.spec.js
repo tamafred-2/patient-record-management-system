@@ -39,7 +39,7 @@ test('midwife records care with conditional location and staff completes the vis
 
     page = await signIn('midwife');
     await expect(page.getByRole('heading', { name: "Today's Midwife care visits", exact: true })).toBeVisible();
-    await page.getByRole('link', { name: 'Open Midwife care record', exact: true }).click();
+    await page.locator(`a[data-row-link][href$="/midwife-care/${scope}"]`).click();
     await page.getByLabel('Care type (required)', { exact: true }).selectOption('COMMUNITY');
     await page.getByLabel('Visit purpose (required)', { exact: true }).fill('Fictional care purpose only.');
     await page.getByLabel('Community / home visit location (required)', { exact: true }).fill('Fictional home location');

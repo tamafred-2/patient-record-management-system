@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\LaboratoryRecord;
 use App\Models\NurseAuthorization;
 use App\Models\Patient;
-use App\Models\User;
 use App\Models\Visit;
 use App\Support\FollowupAccess;
 use App\Support\WorkflowAlerts;
@@ -17,15 +16,10 @@ use Illuminate\Validation\ValidationException;
 
 class FollowupController extends Controller
 {
-    private function assessedBy(Visit $visit, User $nurse): bool
-    {
-        return in_array($nurse->id, [$visit->vitalSign?->recorded_by, $visit->vitalSign?->updated_by], true);
-    }
-
     private function ready(Visit $visit): void
     {
         if (! $visit->isOpen() || ! $visit->vitalSign) {
-            throw ValidationException::withMessages(['followup' => 'Follow-up requests require an open visit with a saved assessment.']);
+            throw ValidationException::withMessages(['followup' => 'Laboratory orders require an open visit with a saved assessment.']);
         }
     }
 
@@ -35,86 +29,36 @@ class FollowupController extends Controller
         $isDoctor = FollowupAccess::doctor($user);
         abort_unless($isDoctor || FollowupAccess::nurse($user), 403);
         $visit = $patient->visits()->with(['service', 'vitalSign.recorder', 'vitalSign.updater'])->findOrFail($visit);
-        $authorizations = $isDoctor ? collect() : $visit->followupAuthorizations()->with(['doctor', 'nurse', 'revoker'])
-            ->where('nurse_id', $user->id)->whereNull('used_at')->whereNull('revoked_at')->latest('id')->get();
-        $records = $visit->laboratoryRecords()->whereNotNull('authorizing_doctor_id')->with(['authorizingDoctor', 'requester', 'followupAuthorization', 'nurseAuthorization'])
-            ->when(! $isDoctor, fn ($query) => $query->where('created_by', $user->id))->latest('id')->get();
-        $standing = FollowupAccess::nurse($user) ? NurseAuthorization::activeFor($user) : null;
-        $canOrderAsNurse = $standing?->usable() && $this->assessedBy($visit, $user);
+        // Doctors and nurses both see every order on the visit, so nobody orders a test that is already pending.
+        $records = $visit->laboratoryRecords()->where(fn ($ordered) => $ordered->whereNotNull('order_reference')->orWhereNotNull('authorizing_doctor_id'))
+            ->with(['authorizingDoctor', 'requester', 'followupAuthorization', 'nurseAuthorization'])->latest('id')->get();
 
-        return view('followups.show', compact('patient', 'visit', 'isDoctor', 'authorizations', 'records', 'standing', 'canOrderAsNurse'));
+        return view('followups.show', compact('patient', 'visit', 'isDoctor', 'records'));
     }
 
-    // Withdraws an unused legacy per-visit grant. New authority is managed on the Nurse authorization page.
-    public function revoke(Request $request, Patient $patient, string $visit, string $authorization)
-    {
-        abort_unless(FollowupAccess::doctor($request->user()), 403);
-        $data = $request->validate(['revocation_reason' => ['nullable', 'string', 'max:1000']]);
-        DB::transaction(function () use ($request, $patient, $visit, $authorization, $data) {
-            $visit = $patient->visits()->whereKey($visit)->lockForUpdate()->firstOrFail();
-            $this->ready($visit);
-            $entry = $visit->followupAuthorizations()->findOrFail($authorization);
-            if ($entry->used_at || $entry->revoked_at) {
-                throw ValidationException::withMessages(['followup' => 'This authority was already used or revoked. Reload the page.']);
-            }
-            $entry->revoked_at = now();
-            $entry->revoked_by = $request->user()->id;
-            $entry->revocation_reason = $data['revocation_reason'] ?? null;
-            $entry->save();
-            activity('followups')->causedBy($request->user())->performedOn($entry)->withProperties(['visit_id' => $visit->id])->log('followup.revoked');
-            $entry->clearNurseAlert();
-        });
-
-        return redirect()->route('followups.show', [$patient, $visit])->with('status', 'Unused visit authorization withdrawn.');
-    }
-
+    // Doctors and nurses order laboratory tests the same way; the order records who placed it.
     public function requestTest(Request $request, Patient $patient, string $visit)
     {
         $user = $request->user();
         $isDoctor = FollowupAccess::doctor($user);
         abort_unless($isDoctor || FollowupAccess::nurse($user), 403);
-        // Doctors order directly; nurses order under their standing authorization, or a legacy per-visit grant.
-        $mode = $request->filled('authorization_id') ? 'visit' : ($isDoctor ? 'direct' : 'standing');
-        abort_unless($mode === 'direct' || FollowupAccess::nurse($user), 403);
         $data = $request->validate([
-            'authorization_id' => [$mode === 'visit' ? 'required' : 'prohibited', 'integer'],
             'test_names' => ['required', 'array', 'min:1'],
             'test_names.*' => ['string', 'distinct', Rule::in(NurseAuthorization::catalog())],
-            'test_name' => ['prohibited'], 'order_reference' => ['prohibited'], 'followup_authorization_id' => ['prohibited'], 'nurse_authorization_id' => ['prohibited'],
+            'test_name' => ['prohibited'], 'order_reference' => ['prohibited'], 'authorization_id' => ['prohibited'], 'followup_authorization_id' => ['prohibited'], 'nurse_authorization_id' => ['prohibited'],
             'request_reason' => ['required', 'string', 'max:2000'],
             'assessment_version' => ['required', 'integer', 'min:1'],
             'submission_token' => ['required', 'uuid'],
             'confirm' => ['accepted'],
             'authorizing_doctor_id' => ['prohibited'], 'created_by' => ['prohibited'], 'visit_id' => ['prohibited'], 'patient_id' => ['prohibited'],
         ]);
-        $count = DB::transaction(function () use ($user, $patient, $visit, $data, $mode) {
+        $count = DB::transaction(function () use ($user, $isDoctor, $patient, $visit, $data) {
             $visit = $patient->visits()->whereKey($visit)->lockForUpdate()->firstOrFail();
             $this->ready($visit);
             if ($visit->vitalSign->lock_version !== (int) $data['assessment_version']) {
                 throw ValidationException::withMessages(['followup' => 'The assessment changed. Reload and review it before requesting a test.']);
             }
-            $grant = null;
-            $standing = null;
-            if ($mode === 'visit') {
-                $grant = $visit->followupAuthorizations()->with('doctor')->where('nurse_id', $user->id)->findOrFail($data['authorization_id']);
-                if ($grant->used_at || $grant->revoked_at || ! FollowupAccess::doctor($grant->doctor)) {
-                    throw ValidationException::withMessages(['followup' => 'This authority is no longer available. Ask a doctor to review it.']);
-                }
-            }
-            if ($mode === 'standing') {
-                $standing = NurseAuthorization::active()->where('nurse_id', $user->id)->with('doctor')->lockForUpdate()->latest('id')->first();
-                if (! $standing?->usable()) {
-                    throw ValidationException::withMessages(['followup' => 'You do not have active laboratory ordering authority. Ask a doctor to turn it on.']);
-                }
-            }
-            if ($mode !== 'direct' && ! $this->assessedBy($visit, $user)) {
-                throw ValidationException::withMessages(['followup' => 'Record your assessment of this patient before ordering laboratory tests.']);
-            }
-            $authority = $grant ?? $standing;
             $tests = array_values(array_intersect(NurseAuthorization::catalog(), $data['test_names']));
-            if ($authority && ($outside = array_diff($tests, $authority->permittedTests()))) {
-                throw ValidationException::withMessages(['test_names' => "These tests are outside the doctor's authorization: ".implode(', ', $outside).'.']);
-            }
             if (LaboratoryRecord::where('order_reference', $data['submission_token'])->orWhere('submission_token', $data['submission_token'])->exists()) {
                 throw ValidationException::withMessages(['followup' => 'This request was already submitted. Review the existing request.']);
             }
@@ -129,9 +73,8 @@ class FollowupController extends Controller
                 $entry->test_name = $test;
                 $entry->availability_status = 'PENDING';
                 $entry->created_by = $entry->updated_by = $user->id;
-                $entry->authorizing_doctor_id = $authority?->doctor_id ?? $user->id;
-                $entry->followup_authorization_id = $grant?->id;
-                $entry->nurse_authorization_id = $standing?->id;
+                // A doctor's own order names them as the authorizing doctor; a nurse's order needs no doctor.
+                $entry->authorizing_doctor_id = $isDoctor ? $user->id : null;
                 $entry->request_reason = $data['request_reason'];
                 // The form token identifies the whole order; the first record keeps it so repeats are caught.
                 $entry->order_reference = $data['submission_token'];
@@ -140,13 +83,8 @@ class FollowupController extends Controller
                 $entry->save();
                 $ids[] = $entry->id;
             }
-            if ($grant) {
-                $grant->used_at = now();
-                $grant->save();
-                $grant->clearNurseAlert();
-            }
             activity('followups')->causedBy($user)->performedOn($entry)
-                ->withProperties(['visit_id' => $visit->id, 'doctor_id' => $entry->authorizing_doctor_id, 'authorization_id' => $grant?->id, 'nurse_authorization_id' => $standing?->id, 'laboratory_record_ids' => $ids])->log('followup.requested');
+                ->withProperties(['visit_id' => $visit->id, 'ordered_by_role' => $isDoctor ? 'doctor' : 'nurse', 'laboratory_record_ids' => $ids])->log('followup.requested');
             WorkflowAlerts::send('lab_ordered', $visit, WorkflowAlerts::medtechs(), $user, ['laboratory_record_ids' => $ids]);
 
             return count($ids);
@@ -163,8 +101,6 @@ class FollowupController extends Controller
         $visit = $patient->visits()->with('service')->findOrFail($visit);
         $records = $visit->laboratoryRecords()->where('order_reference', $order)->with(['authorizingDoctor', 'requester', 'followupAuthorization', 'nurseAuthorization'])->orderBy('id')->get();
         abort_if($records->isEmpty(), 404);
-        // Nurses may print only orders they placed; doctors and laboratory staff may print any order on the visit.
-        abort_unless($isDoctor || $user->can('laboratory.view') || $records->first()->created_by === $user->id, 403);
         activity('followups')->causedBy($user)->performedOn($records->first())->withProperties(['visit_id' => $visit->id, 'laboratory_record_ids' => $records->pluck('id')->all()])->log('followup.slip_viewed');
 
         return response()->view('followups.slip', compact('patient', 'visit', 'records'))->header('Cache-Control', 'private, no-store');

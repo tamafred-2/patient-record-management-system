@@ -28,7 +28,7 @@ class AuthController extends Controller
 
         if (! Auth::attempt([...$credentials, 'is_active' => true])) {
             RateLimiter::hit($key, 60);
-            throw ValidationException::withMessages(['email' => 'Unable to sign in with these credentials. Contact your administrator if you need help.']);
+            throw ValidationException::withMessages(['email' => 'Invalid email or password.']);
         }
 
         RateLimiter::clear($key);

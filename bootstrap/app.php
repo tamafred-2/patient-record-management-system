@@ -43,6 +43,16 @@ return Application::configure(basePath: dirname(__DIR__))
             return $response->withHeaders($exception->getHeaders())->header('Cache-Control', 'no-store, private');
         });
         $exceptions->render(function (HttpException $exception, Request $request) {
+            // Only browser page navigation redirects; writes and background requests stay denied.
+            if ($exception->getStatusCode() === 403 && $request->isMethod('GET')
+                && str_contains($request->header('Accept', ''), 'text/html')
+                && ! $request->expectsJson() && ! $request->hasHeader('X-Scroll-Queue')
+                && $request->user()?->can('dashboard.view') && ! $request->routeIs('dashboard')) {
+                return redirect()->route('dashboard')
+                    ->with('access_warning', 'You do not have permission to open that page. You have been returned to your dashboard.')
+                    ->withHeaders(['Cache-Control' => 'no-store, private']);
+            }
+
             if ($exception->getStatusCode() !== 419 || $request->expectsJson()
                 || ! $request->routeIs('login.store', 'logout')) {
                 return null;

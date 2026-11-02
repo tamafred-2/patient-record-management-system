@@ -36,7 +36,7 @@ class LaboratoryPrintTest extends TestCase
         $this->assertSame(['visit_id', 'version'], array_keys($audit->properties->all()));
         foreach (['doctor', 'nurse', 'admin', 'information', 'pharmacist', 'midwife'] as $role) {
             $user = User::where('email', $role.'@rhu.test')->sole();
-            $this->actingAs($user)->get($url)->assertForbidden();
+            $this->actingAs($user)->getJson($url)->assertForbidden();
             $this->assertNotContains($url, array_column(PrintableDocuments::forVisit($user, $visit->fresh()), 'url'));
         }
         $this->actingAs($medtech);

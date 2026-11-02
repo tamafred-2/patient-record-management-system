@@ -38,7 +38,7 @@ class AdminVisitDetailsTest extends TestCase
             ->assertDontSee("<script>alert('test')</script>", false)
             ->assertDontSee('PRIVATE-CONTACT')->assertDontSee('Open Digital ITR')
             ->assertDontSee('Review and complete visit');
-        $this->get(route('itr.edit', [$visit->patient, $visit]))->assertForbidden();
+        $this->getJson(route('itr.edit', [$visit->patient, $visit]))->assertForbidden();
         $this->post(route('visits.complete', [$visit->patient, $visit]), ['confirm' => 1])->assertForbidden();
     }
 
@@ -49,7 +49,7 @@ class AdminVisitDetailsTest extends TestCase
         $this->get($url)->assertRedirect(route('login'));
         foreach (['information', 'doctor', 'nurse', 'medtech', 'pharmacist', 'midwife'] as $account) {
             $this->actingAs(User::where('email', $account.'@rhu.test')->firstOrFail());
-            $this->get($url)->assertForbidden();
+            $this->getJson($url)->assertForbidden();
         }
         $admin = User::where('email', 'admin@rhu.test')->firstOrFail();
         $this->actingAs($admin)->get($url)->assertOk()->assertSee('has not been marked completed');

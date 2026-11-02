@@ -113,6 +113,7 @@ test('one fictional patient passes through all implemented operational roles', a
     await page.getByLabel('Medicine name', { exact: true }).fill('Fictional journey medicine');
     await page.getByLabel('Dosage', { exact: true }).fill('Example only');
     await page.getByLabel('Frequency', { exact: true }).fill('Example only');
+    await page.getByLabel('Duration', { exact: true }).fill('5 days');
     await page.getByLabel('Quantity prescribed', { exact: true }).fill('2');
     await page.getByRole('button', { name: 'Save draft', exact: true }).click();
     await expect(page.getByRole('status')).toBeVisible();
@@ -167,7 +168,22 @@ test('one fictional patient passes through all implemented operational roles', a
     await expect(page.getByRole('heading', { name: 'Complete blood count (CBC)', exact: true })).toBeVisible();
 
     page = await asRole('pharmacist');
+    // Stock the prescribed medicine first; releases are deducted from the inventory.
+    await page.goto('/inventory');
+    await page.getByRole('button', { name: 'Add medicine', exact: true }).click();
+    const medicineDialog = page.getByRole('dialog');
+    await medicineDialog.getByLabel('Medicine name (generic)').fill('Fictional journey medicine');
+    await medicineDialog.getByLabel('Form / unit').selectOption('Tablet');
+    await medicineDialog.getByLabel('Low-stock level').fill('1');
+    await medicineDialog.getByRole('button', { name: 'Add medicine', exact: true }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Fictional journey medicine (Tablet) added' })).toBeVisible();
+    await page.getByLabel('Quantity received').fill('10');
+    const nextYear = new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    await page.getByLabel('Expiry date').fill(nextYear);
+    await page.getByRole('button', { name: 'Add stock', exact: true }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Stock received' })).toBeVisible();
     await page.goto('/pharmacy/' + scope);
+    await expect(page.getByLabel('Release from stock', { exact: true })).toContainText('10 available');
     for (const state of ['Partially dispensed', 'Fully dispensed']) {
       await page.getByLabel('Quantity released now', { exact: true }).fill('1');
       await page.getByRole('checkbox').check();
@@ -187,6 +203,9 @@ test('one fictional patient passes through all implemented operational roles', a
 
     page = await asRole('doctor');
     await page.goto('/history/' + patient);
+    // The patient file shows each department's records; the event list sits under the collapsible Timeline.
+    await expect(page.getByRole('heading', { name: 'Prescription and medicines given' }).first()).toBeVisible();
+    await page.getByText('Timeline', { exact: true }).first().click();
     await expect(page.getByText('Medicine release recorded').first()).toBeVisible();
     await page.screenshot({ path: 'storage/framework/testing/patient-journey-history.png', fullPage: true });
     page = await asRole('admin');

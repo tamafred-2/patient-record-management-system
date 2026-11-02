@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\Medicine;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\Service;
 use App\Models\User;
 use App\Models\Visit;
+use App\Support\Inventory;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
@@ -21,6 +23,9 @@ class DispensingTest extends TestCase
     private Patient $patient;
 
     private Visit $visit;
+
+    /** @var array<int, Medicine> Stock items for the two prescribed test medicines. */
+    private array $stock = [];
 
     protected function setUp(): void
     {
@@ -48,22 +53,33 @@ class DispensingTest extends TestCase
     {
         $url = route('prescriptions.show', [$this->patient, $this->visit]);
         $this->put($url, ['lock_version' => 0, 'items' => [
-            ['medicine_name' => 'Fictional medicine A', 'dosage' => 'Example', 'frequency' => 'Example', 'quantity_prescribed' => '6'],
-            ['medicine_name' => 'Fictional medicine B', 'dosage' => 'Example', 'frequency' => 'Example', 'quantity_prescribed' => '2'],
+            ['medicine_name' => 'Fictional medicine A', 'dosage' => 'Example', 'frequency' => 'Example', 'duration' => '5 days', 'quantity_prescribed' => '6'],
+            ['medicine_name' => 'Fictional medicine B', 'dosage' => 'Example', 'frequency' => 'Example', 'duration' => '5 days', 'quantity_prescribed' => '2'],
         ]])->assertSessionHasNoErrors();
         if ($issue) {
             $this->post(route('prescriptions.issue', [$this->patient, $this->visit]), ['lock_version' => 1, 'confirm' => 1])->assertSessionHasNoErrors();
         }
         $pharmacist = User::factory()->create();
         $pharmacist->assignRole('Pharmacist');
+        foreach (['Fictional medicine A', 'Fictional medicine B'] as $index => $name) {
+            $this->stock[$index] = Medicine::forceCreate(['name' => $name, 'form' => 'Tablet', 'lookup_key' => Medicine::lookupKey($name, null, 'Tablet'), 'reorder_level' => 1, 'created_by' => $pharmacist->id]);
+            Inventory::receive($this->stock[$index], 10000, ['received_on' => now('Asia/Manila')->toDateString(), 'expiry_date' => now('Asia/Manila')->addYear()->toDateString()], $pharmacist);
+        }
         $this->actingAs($pharmacist);
+    }
+
+    private function stockIds(): array
+    {
+        $items = Prescription::firstOrFail()->items;
+
+        return [$items[0]->id => $this->stock[0]->id, $items[1]->id => $this->stock[1]->id];
     }
 
     private function releaseData(int $version = 2): array
     {
         $items = Prescription::firstOrFail()->items;
 
-        return ['lock_version' => $version, 'confirm' => 1, 'quantities' => [$items[0]->id => '1.25', $items[1]->id => '0'], 'remarks' => '<script>fictional</script>'];
+        return ['lock_version' => $version, 'confirm' => 1, 'medicine_ids' => $this->stockIds(), 'quantities' => [$items[0]->id => '1', $items[1]->id => '0'], 'remarks' => '<script>fictional</script>'];
     }
 
     public function test_partial_then_full_release_preserves_prescription_and_audit_privacy(): void
@@ -74,10 +90,10 @@ class DispensingTest extends TestCase
         $this->get('/pharmacy')->assertOk()->assertSee($rx->prescription_number);
         $this->get($this->pharmacyUrl())->assertOk()->assertSee('Not dispensed')->assertDontSee('Fictional assessment');
         $this->post($this->pharmacyUrl(), $this->releaseData())->assertSessionHasNoErrors();
-        $this->get($this->pharmacyUrl())->assertSee('Partially dispensed')->assertSee('4.75')->assertSee('&lt;script&gt;fictional&lt;/script&gt;', false)->assertDontSee('<script>fictional</script>', false);
+        $this->get($this->pharmacyUrl())->assertSee('Partially dispensed')->assertSee('Remaining: 5')->assertSee('&lt;script&gt;fictional&lt;/script&gt;', false)->assertDontSee('<script>fictional</script>', false);
         $items = $rx->items;
         $data = $this->releaseData(3);
-        $data['quantities'] = [$items[0]->id => '4.75', $items[1]->id => '2'];
+        $data['quantities'] = [$items[0]->id => '5', $items[1]->id => '2'];
         $this->post($this->pharmacyUrl(), $data)->assertSessionHasNoErrors();
         $this->get($this->pharmacyUrl())->assertSee('Fully dispensed');
         $this->assertDatabaseCount('dispensings', 2);
@@ -94,7 +110,7 @@ class DispensingTest extends TestCase
         $this->preparePrescription();
         $base = $this->releaseData();
         $id = array_key_first($base['quantities']);
-        foreach (['6.01', '-1', '1.001', '1e1', 'not numeric'] as $value) {
+        foreach (['7', '-1', '1.5', '1.001', '1e1', 'not numeric'] as $value) {
             $data = $base;
             $data['quantities'] = [$id => $value];
             $this->post($this->pharmacyUrl(), $data)->assertSessionHasErrors();
@@ -112,7 +128,7 @@ class DispensingTest extends TestCase
         $this->preparePrescription();
         $rx = Prescription::firstOrFail();
         [$a, $b] = [$rx->items[0]->id, $rx->items[1]->id];
-        $base = ['lock_version' => 2, 'confirm' => 1, 'quantities' => [$a => '0', $b => '0']];
+        $base = ['lock_version' => 2, 'confirm' => 1, 'medicine_ids' => $this->stockIds(), 'quantities' => [$a => '0', $b => '0']];
         $invalid = [
             ['released_as' => [$a => 'Generic example 500 mg']],
             ['quantities' => [$a => '6', $b => '0'], 'outcomes' => [$a => 'BUY_OUTSIDE']],
@@ -138,7 +154,7 @@ class DispensingTest extends TestCase
         $this->assertSame('Fictional medicine A', $rx->fresh()->items[0]->medicine_name);
         $this->get($this->pharmacyUrl())->assertOk()
             ->assertSee('Pharmacy complete: some medicines not released here')
-            ->assertSee('as Generic example 500 mg')->assertSee('Patient will buy outside: 4.00')->assertSee('Patient declined: 2.00')
+            ->assertSee('as Generic example 500 mg')->assertSee('Patient will buy outside: 4')->assertSee('Patient declined: 2')
             ->assertSee('(Out of stock at RHU)', false)->assertDontSee('Record pharmacy entry');
         $this->assertSame(1, Prescription::has('releasedDispensings')->count());
         $this->assertSame(1, Prescription::withUnreleasedOutcome('DECLINED')->count());
@@ -165,9 +181,9 @@ class DispensingTest extends TestCase
     {
         $this->preparePrescription();
         $data = $this->releaseData();
-        $this->get('/patients')->assertForbidden();
-        $this->get(route('itr.edit', [$this->patient, $this->visit]))->assertForbidden();
-        $this->get(route('prescriptions.show', [$this->patient, $this->visit]))->assertForbidden();
+        $this->getJson('/patients')->assertForbidden();
+        $this->getJson(route('itr.edit', [$this->patient, $this->visit]))->assertForbidden();
+        $this->getJson(route('prescriptions.show', [$this->patient, $this->visit]))->assertForbidden();
         $other = $this->patient->replicate();
         $other->patient_number = 'RHU-PHARMACY-OTHER';
         $other->save();
@@ -177,8 +193,8 @@ class DispensingTest extends TestCase
             $user = User::factory()->create();
             $user->assignRole($role);
             $this->actingAs($user);
-            $this->get('/pharmacy')->assertForbidden();
-            $this->get($this->pharmacyUrl())->assertForbidden();
+            $this->getJson('/pharmacy')->assertForbidden();
+            $this->getJson($this->pharmacyUrl())->assertForbidden();
             $this->post($this->pharmacyUrl(), $data)->assertForbidden();
         }
         $reader = User::factory()->create();
@@ -200,12 +216,15 @@ class DispensingTest extends TestCase
         $rx->prescribed_at = now();
         $rx->save();
         $this->get('/pharmacy?date=2000-01-01')->assertDontSee($rx->prescription_number);
+        // Releases continue after the visit is completed; the visit ends at the issued prescription.
         $this->visit->status = 'COMPLETED';
         $this->visit->save();
-        $this->post($this->pharmacyUrl(), $this->releaseData(1))->assertSessionHasErrors('visit');
+        $this->post($this->pharmacyUrl(), $this->releaseData(1))->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('dispensings', 1);
         $this->patient->delete();
         $this->get($this->pharmacyUrl())->assertNotFound();
         $this->get('/pharmacy')->assertDontSee($rx->prescription_number);
-        $this->assertDatabaseCount('dispensings', 0);
+        $this->post($this->pharmacyUrl(), $this->releaseData(2))->assertNotFound();
+        $this->assertDatabaseCount('dispensings', 1);
     }
 }

@@ -1,7 +1,7 @@
 <x-layout title="PhilHealth confirmation">
     <h1 class="text-3xl font-semibold">PhilHealth confirmation</h1>
     <p class="mt-2 text-slate-600">Confirm patient records after checking the existing PhilHealth system.</p>
-    <x-visit-filters :search="$search" :date="$date" :all-dates="$allDates" />
+    <x-visit-filters :search="$search" :date="$date" :all-dates="$allDates" :filters="App\Support\ListFilters::priorityFilter() + ['confirmation' => ['label' => 'Confirmation', 'options' => ['with' => 'With record', 'without' => 'No record', 'unchecked' => 'Not checked']]]" />
     <p class="mt-3 text-sm font-semibold text-emerald-800">{{ $allDates ? 'All dates' : $date }} ? {{ $visits->total() }} visits</p>
     @if($errors->any())<x-alert type="error">{{ $errors->first() }}</x-alert>@endif
     <x-scroll-queue :paginator="$visits" id="visits" label="Visits, scroll to load more">

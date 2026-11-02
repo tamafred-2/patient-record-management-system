@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Medicine;
 use App\Models\User;
 use App\Models\Visit;
 use Database\Seeders\WorkflowDemoSeeder;
@@ -68,7 +69,6 @@ class VisitCompletionTest extends TestCase
         $lab->lock_version++;
         $lab->save();
         $version = $this->version($visit);
-        $this->post($url, ['confirm' => 1, 'review_version' => $version])->assertSessionHasErrors('completion_remarks');
         $rx = $visit->prescription;
         $rx->status = 'DRAFT';
         $rx->lock_version++;
@@ -84,9 +84,11 @@ class VisitCompletionTest extends TestCase
         $audit = Activity::where('description', 'visit.completed')->firstOrFail();
         $this->assertArrayNotHasKey('completion_remarks', $audit->properties->all());
         $this->role('pharmacist');
-        $this->get(route('pharmacy.show', [$visit->patient, $visit]))->assertOk()->assertDontSee('Record pharmacy entry');
+        // The visit ends at the prescription; Pharmacy can still release the remaining medicine afterwards.
+        $this->get(route('pharmacy.show', [$visit->patient, $visit]))->assertOk()->assertSee('Record pharmacy entry');
         $item = $rx->items()->firstOrFail();
-        $this->post(route('pharmacy.store', [$visit->patient, $visit]), ['confirm' => 1, 'lock_version' => $rx->lock_version, 'quantities' => [$item->id => 1]])->assertSessionHasErrors('visit');
+        $this->post(route('pharmacy.store', [$visit->patient, $visit]), ['confirm' => 1, 'lock_version' => $rx->fresh()->lock_version, 'quantities' => [$item->id => 1], 'medicine_ids' => [$item->id => Medicine::where('name', $item->medicine_name)->value('id')]])->assertSessionHasNoErrors();
+        $this->assertSame('COMPLETED', $visit->fresh()->status);
     }
 
     public function test_unauthorized_cross_patient_archived_and_forged_completion_are_rejected(): void
@@ -94,7 +96,7 @@ class VisitCompletionTest extends TestCase
         $visit = Visit::orderBy('id')->skip(1)->firstOrFail();
         foreach (['admin', 'nurse', 'pharmacist', 'medtech', 'midwife'] as $role) {
             $this->role($role);
-            $this->get($this->url($visit))->assertForbidden();
+            $this->getJson($this->url($visit))->assertForbidden();
             $this->post($this->url($visit), ['confirm' => 1])->assertForbidden();
         }
         $this->role('information');

@@ -54,10 +54,13 @@ class WeekThreeTest extends TestCase
         $this->get($url)->assertOk()->assertSee('ITR recorded')->assertSee('Medicine release recorded')->assertSee('Medical certificate requested');
         $this->asRole('information');
         $this->get($url)->assertOk()->assertSee('Visit registered')->assertDontSee('ITR recorded')->assertDontSee('Medicine release recorded');
-        foreach (['admin', 'nurse', 'pharmacist', 'medtech', 'midwife'] as $role) {
+        // Since the post-defense revision, clinical departments open the patient file with their own sections; Admin stays out.
+        foreach (['nurse', 'pharmacist', 'medtech', 'midwife'] as $role) {
             $this->asRole($role);
-            $this->get($url)->assertForbidden();
+            $this->get($url)->assertOk()->assertDontSee('ITR recorded');
         }
+        $this->asRole('admin');
+        $this->getJson($url)->assertForbidden();
         $this->asRole('doctor');
         $patient->delete();
         $this->get($url)->assertNotFound();
@@ -81,7 +84,7 @@ class WeekThreeTest extends TestCase
         $this->post($url, array_replace($data, ['reason' => '']))->assertSessionHasErrors('reason');
         foreach (['admin', 'information', 'nurse', 'pharmacist', 'medtech', 'midwife'] as $role) {
             $this->asRole($role);
-            $this->get($url)->assertForbidden();
+            $this->getJson($url)->assertForbidden();
             $this->post($url, $data)->assertForbidden();
         }
         $this->asRole('doctor');
@@ -104,14 +107,14 @@ class WeekThreeTest extends TestCase
         $this->get('/reports?from=2020-01-01&to=2026-01-01')->assertSessionHasErrors();
         foreach (['doctor', 'information', 'nurse', 'pharmacist', 'medtech', 'midwife'] as $role) {
             $this->asRole($role);
-            $this->get('/reports')->assertForbidden();
-            $this->get('/reports/pdf')->assertForbidden();
+            $this->getJson('/reports')->assertForbidden();
+            $this->getJson('/reports/pdf')->assertForbidden();
         }
         $viewer = User::factory()->create();
         $viewer->givePermissionTo('reports.view');
         $this->actingAs($viewer);
         $this->get('/reports')->assertOk();
-        $this->get('/reports/pdf')->assertForbidden();
+        $this->getJson('/reports/pdf')->assertForbidden();
         $this->assertTrue(Activity::where('description', 'report.exported')->exists());
     }
 
@@ -126,12 +129,12 @@ class WeekThreeTest extends TestCase
         $this->get(route('visits.pdf', [Patient::where('id', '!=', $patient->id)->first(), $visit]))->assertNotFound();
         foreach (['admin', 'information', 'nurse', 'pharmacist', 'medtech', 'midwife'] as $role) {
             $this->asRole($role);
-            $this->get($url)->assertForbidden();
+            $this->getJson($url)->assertForbidden();
         }
         $viewer = User::factory()->create();
         $viewer->givePermissionTo('consultations.view');
         $this->actingAs($viewer);
-        $this->get($url)->assertForbidden();
+        $this->getJson($url)->assertForbidden();
         $this->assertTrue(Activity::where('description', 'visit.summary_exported')->exists());
     }
 

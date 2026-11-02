@@ -46,7 +46,22 @@ class PrescriptionTest extends TestCase
 
     private function data(int $version = 0): array
     {
-        return ['lock_version' => $version, 'items' => [['medicine_name' => 'Fictional medicine', 'dosage' => 'Example dose', 'frequency' => 'Example frequency', 'quantity_prescribed' => 5]]];
+        return ['lock_version' => $version, 'items' => [['medicine_name' => 'Fictional medicine', 'dosage' => 'Example dose', 'frequency' => 'Example frequency', 'duration' => '5 days', 'quantity_prescribed' => 5]]];
+    }
+
+    public function test_duration_is_required_for_every_medicine(): void
+    {
+        foreach ([null, '', '   '] as $duration) {
+            $data = $this->data();
+            $data['items'][0]['duration'] = $duration;
+            $this->put($this->url(), $data)->assertSessionHasErrors('items.0.duration');
+        }
+        $data = $this->data();
+        unset($data['items'][0]['duration']);
+        $this->put($this->url(), $data)->assertSessionHasErrors('items.0.duration');
+        $this->assertDatabaseCount('prescriptions', 0);
+        $this->put($this->url(), $this->data())->assertSessionHasNoErrors();
+        $this->get($this->url())->assertSee('Duration')->assertDontSee('Duration (optional)');
     }
 
     public function test_quantities_are_whole_numbers_and_reuse_is_scoped_to_the_doctor_and_active_patients(): void
@@ -120,7 +135,9 @@ class PrescriptionTest extends TestCase
             $user = User::factory()->create();
             $user->assignRole($role);
             $this->actingAs($user);
-            $this->get($this->url())->assertStatus($role === 'Doctor / Medical Officer' ? 200 : 403);
+            // Denied page views return to the dashboard with a warning; writes stay 403.
+            $page = $this->get($this->url());
+            $role === 'Doctor / Medical Officer' ? $page->assertOk() : $page->assertRedirect(route('dashboard'))->assertSessionHas('access_warning');
             $this->put($this->url(), $this->data(1))->assertForbidden();
             $this->post(route('prescriptions.issue', [$this->patient, $this->visit]), ['lock_version' => 1, 'confirm' => 1])->assertForbidden();
         }
@@ -130,7 +147,7 @@ class PrescriptionTest extends TestCase
     {
         foreach ([
             ['items' => []], ['doctor_id' => 999], ['visit_id' => 999], ['treatment_record_id' => 999], ['status' => 'ISSUED'],
-            ['items' => [['medicine_name' => 'Example', 'dosage' => 'Example', 'frequency' => 'Example', 'quantity_prescribed' => 0]]],
+            ['items' => [['medicine_name' => 'Example', 'dosage' => 'Example', 'frequency' => 'Example', 'duration' => '5 days', 'quantity_prescribed' => 0]]],
         ] as $extra) {
             $this->put($this->url(), array_replace($this->data(), $extra))->assertSessionHasErrors();
         }

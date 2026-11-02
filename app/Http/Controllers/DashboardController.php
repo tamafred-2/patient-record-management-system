@@ -9,6 +9,7 @@ use App\Models\Prescription;
 use App\Models\Service;
 use App\Models\VaccinationRecord;
 use App\Models\Visit;
+use App\Support\DashboardHeader;
 use App\Support\FollowUpReminders;
 use App\Support\ListFilters;
 use Illuminate\Http\Request;
@@ -20,8 +21,9 @@ class DashboardController extends Controller
     public function __invoke(Request $request)
     {
         Gate::authorize('dashboard.view');
-        $input = $request->validate(['search' => ListFilters::search(), 'service_id' => ['nullable', 'integer', 'min:1']]);
+        $input = $request->validate(['search' => ListFilters::search(), 'followup_search' => ListFilters::search(), 'service_id' => ['nullable', 'integer', 'min:1']]);
         $search = trim($input['search'] ?? '');
+        $followupSearch = trim($input['followup_search'] ?? '');
         $serviceId = $input['service_id'] ?? null;
         $today = now('Asia/Manila')->toDateString();
         $todayVisitQuery = fn () => Visit::whereHas('patient')->whereDate('visit_date', $today);
@@ -140,9 +142,14 @@ class DashboardController extends Controller
 
         FollowUpReminders::dispatchDue();
         $followUps = Gate::allows('viewAny', Visit::class) || Gate::allows('consultations.view')
-            ? FollowUpReminders::outstanding()->with('followUpSetter')->whereDate('follow_up_on', '<=', now('Asia/Manila')->addDays(7)->toDateString())->orderBy('follow_up_on')->limit(30)->get() : collect();
+            ? FollowUpReminders::outstanding()->with('followUpSetter')->searchPatientOrQueue($followupSearch)->whereDate('follow_up_on', '<=', now('Asia/Manila')->addDays(7)->toDateString())->orderBy('visits.follow_up_on')->orderBy('visits.id')->cursorPaginate(10, ['visits.*'], 'followups_cursor')->withQueryString()->fragment('follow-ups') : collect();
 
-        return view('dashboard', compact('followUps', 'summaryCards', 'today', 'todayVisits', 'todayVisitsTotal', 'nextVisitsUrl', 'serviceId', 'todayPharmacy', 'todayVaccinations', 'todayMidwifeCare', 'search', 'todayAssessments', 'todayLaboratory', 'departmentBatches', 'departmentTotals', 'departmentNext'));
+        $user = $request->user();
+        $dashboardDescription = DashboardHeader::description($user);
+        $dashboardAction = DashboardHeader::action($user, $today);
+        $splitVisits = $user->hasRole('Information Staff') && $todayVisits !== null;
+
+        return view('dashboard', compact('dashboardDescription', 'dashboardAction', 'splitVisits', 'followUps', 'followupSearch', 'summaryCards', 'today', 'todayVisits', 'todayVisitsTotal', 'nextVisitsUrl', 'serviceId', 'todayPharmacy', 'todayVaccinations', 'todayMidwifeCare', 'search', 'todayAssessments', 'todayLaboratory', 'departmentBatches', 'departmentTotals', 'departmentNext'));
     }
 
     private function visitQuery(string $search, ?int $serviceId, bool $doctorList = true)
@@ -191,7 +198,7 @@ class DashboardController extends Controller
         $visits = $query->cursorPaginate(10)->withQueryString();
 
         return response()->json([
-            'html' => view($section === 'visits' ? 'visits.rows' : 'dashboard.department-rows', ['sectionType' => $section, 'visits' => $visits, 'dashboardActions' => Gate::allows('consultations.view') || Gate::allows('eligibility.view')])->render(),
+            'html' => view($section === 'visits' ? 'visits.rows' : 'dashboard.department-rows', ['sectionType' => $section, 'visits' => $visits, 'hideStatus' => $section === 'visits', 'dashboardActions' => Gate::allows('consultations.view') || Gate::allows('eligibility.view')])->render(),
             'next' => $visits->nextPageUrl(),
             'previous' => $visits->previousPageUrl(),
             'count' => $visits->count(),

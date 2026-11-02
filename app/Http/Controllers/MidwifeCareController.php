@@ -17,11 +17,12 @@ class MidwifeCareController extends Controller
     public function index(Request $request)
     {
         Gate::authorize('midwife-care.view');
-        $data = $request->validate(['all' => ['sometimes', 'boolean'], 'date' => ListFilters::pastDate(), 'search' => ListFilters::search()]);
+        $data = $request->validate(['all' => ['sometimes', 'boolean'], 'date' => ListFilters::pastDate(), 'search' => ListFilters::search(), 'priority' => ListFilters::priority(), 'care_type' => ['nullable', Rule::in(array_keys(MidwifeCareRecord::TYPES))]]);
         $allDates = (bool) ($data['all'] ?? false);
         $date = $data['date'] ?? now('Asia/Manila')->toDateString();
         $search = trim($data['search'] ?? '');
-        $visits = Visit::midwifeCareVisits()->with('patient')->withCount('midwifeCareRecords')
+        $visits = Visit::midwifeCareVisits()->with('patient')->withCount('midwifeCareRecords')->when($data['priority'] ?? null, fn ($query, $priority) => $query->where('priority', $priority))
+            ->when($data['care_type'] ?? null, fn ($query, $type) => $query->whereHas('midwifeCareRecords', fn ($care) => $care->where('care_type', $type)))
             ->when(! $allDates, fn ($query) => $query->whereDate('visit_date', $date))->searchPatientOrQueue($search)->priorityFirst()->scrollPaginate()->withQueryString();
 
         return view('midwife-care.index', compact('allDates', 'search', 'date', 'visits'));

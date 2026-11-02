@@ -11,8 +11,8 @@
         @endif
     </svg>
     <div class="min-w-0 flex-1 text-sm">
-        <p class="font-semibold">{{ $title ?? ($isError ? 'Please check the following' : 'Success') }}</p>
-        <div class="mt-1 break-words leading-6">{{ $slot }}</div>
+        @if($title !== false)<p class="font-semibold">{{ $title ?? ($isError ? 'Please check the following' : 'Success') }}</p>@endif
+        <div @class(['break-words leading-6', 'mt-1' => $title !== false])>{{ $slot }}</div>
     </div>
     @if($dismissible)
         <button type="button" @click="visible = false" aria-label="Dismiss notification" class="shrink-0 rounded-md p-1 opacity-70 hover:bg-black/5 hover:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current">

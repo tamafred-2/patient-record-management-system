@@ -54,9 +54,9 @@ class MidwifeRoleTest extends TestCase
         $this->put(route('assessments.save', [$this->visit->patient, $this->visit]), $this->vitals($this->visit))->assertSessionHasNoErrors();
         $this->assertSame($this->midwife->id, $this->visit->fresh()->vitalSign->recorded_by);
 
-        $this->get(route('assessments.edit', [$this->consultation->patient, $this->consultation]))->assertForbidden();
+        $this->getJson(route('assessments.edit', [$this->consultation->patient, $this->consultation]))->assertForbidden();
         $this->put(route('assessments.save', [$this->consultation->patient, $this->consultation]), $this->vitals($this->consultation))->assertForbidden();
-        $this->get(route('assessments.index'))->assertForbidden();
+        $this->getJson(route('assessments.index'))->assertForbidden();
         $this->get('/dashboard')->assertOk()->assertDontSee('Initial assessment');
     }
 
@@ -105,7 +105,7 @@ class MidwifeRoleTest extends TestCase
         $this->get(route('midwife-report.index', ['month' => now('Asia/Manila')->addMonth()->format('Y-m')]))->assertSessionHasErrors('month');
         $this->actingAs(User::where('email', 'admin@rhu.test')->firstOrFail())->get(route('midwife-report.index'))->assertOk();
         foreach (['pharmacist', 'nurse', 'medtech'] as $role) {
-            $this->actingAs(User::where('email', $role.'@rhu.test')->firstOrFail())->get(route('midwife-report.index'))->assertForbidden();
+            $this->actingAs(User::where('email', $role.'@rhu.test')->firstOrFail())->getJson(route('midwife-report.index'))->assertForbidden();
         }
     }
 

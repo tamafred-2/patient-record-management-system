@@ -65,8 +65,12 @@ function startQueue(root) {
         const documentTop = viewport.getBoundingClientRect().top + window.scrollY;
         const available = screenHeight - documentTop - trailingSpace - 2;
         // Very small screens and pages with several sections must retain a
-        // usable table without hiding the surrounding forms/content.
-        viewport.style.height = `${Math.floor(Math.min(head + rowsHeight, Math.max(96, available)))}px`;
+        // usable table without hiding the surrounding forms/content. A table
+        // lower on a long page can ask to keep a few rows visible (the page
+        // then scrolls) instead of shrinking to a single row.
+        const minRows = Number(root.dataset.minRows || 0);
+        const minimum = head + rows.slice(0, minRows).reduce((height, row) => height + row.getBoundingClientRect().height, 0);
+        viewport.style.height = `${Math.floor(Math.min(head + rowsHeight, Math.max(96, minimum, available)))}px`;
     }
 
     async function load(direction) {

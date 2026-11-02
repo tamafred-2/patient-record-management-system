@@ -111,21 +111,21 @@ class StaffAccessTest extends TestCase
             $user = $this->staff($role);
             $this->actingAs($user)->get('/dashboard')->assertOk();
             $response = $this->get('/staff');
-            $role === 'System Admin' ? $response->assertOk() : $response->assertForbidden();
+            $role === 'System Admin' ? $response->assertOk() : $response->assertRedirect('/dashboard')->assertSessionHas('access_warning');
         }
     }
 
     public function test_user_without_dashboard_permission_is_denied(): void
     {
-        $this->actingAs(User::factory()->create())->get('/dashboard')->assertForbidden();
+        $this->actingAs(User::factory()->create())->getJson('/dashboard')->assertForbidden();
     }
 
     public function test_non_admin_cannot_create_or_change_another_account(): void
     {
         $actor = $this->staff();
         $target = $this->staff('Nurse');
-        $this->actingAs($actor)->get('/staff/create')->assertForbidden();
-        $this->get(route('staff.edit', $target))->assertForbidden();
+        $this->actingAs($actor)->getJson('/staff/create')->assertForbidden();
+        $this->getJson(route('staff.edit', $target))->assertForbidden();
         $this->post('/staff', $this->accountData())->assertForbidden();
         $this->patch(route('staff.update', $target), ['is_active' => false, 'roles' => ['System Admin']])->assertForbidden();
         $this->assertTrue($target->fresh()->is_active);
@@ -247,7 +247,7 @@ class StaffAccessTest extends TestCase
         $user = $this->staff('System Admin');
         $this->actingAs($user)->get('/staff')->assertOk();
         $user->syncRoles(['Nurse']);
-        $this->actingAs($user->fresh())->get('/staff')->assertForbidden();
+        $this->actingAs($user->fresh())->getJson('/staff')->assertForbidden();
     }
 
     public function test_bootstrap_rejects_weak_password_without_creating_account(): void

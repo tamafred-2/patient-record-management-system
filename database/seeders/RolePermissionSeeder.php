@@ -20,7 +20,7 @@ class RolePermissionSeeder extends Seeder
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        foreach (['certificates.prepare', 'certificates.print', 'assessments.request', 'followups.authorize', 'followups.request', 'visits.prioritize', 'vitals.midwife'] as $name) {
+        foreach (['certificates.prepare', 'certificates.print', 'assessments.request', 'followups.authorize', 'followups.request', 'visits.prioritize', 'vitals.midwife', 'inventory.view', 'inventory.manage'] as $name) {
             Permission::findOrCreate($name, 'web');
         }
 
@@ -45,17 +45,17 @@ class RolePermissionSeeder extends Seeder
                 $role->givePermissionTo(['visits.complete', 'consultations.view', 'itr.create', 'itr.update', 'prescriptions.view', 'prescriptions.create', 'prescriptions.update', 'history.view', 'dispositions.view', 'dispositions.record', 'visits.export']);
             }
             if ($name === 'Pharmacist') {
-                $role->givePermissionTo(['pharmacy.view', 'pharmacy.dispense']);
+                $role->givePermissionTo(['pharmacy.view', 'pharmacy.dispense', 'inventory.view', 'inventory.manage', 'history.view']);
             }
             if ($name === 'MedTech') {
-                $role->givePermissionTo(['laboratory.view', 'laboratory.record']);
+                $role->givePermissionTo(['laboratory.view', 'laboratory.record', 'history.view']);
             }
             if ($name === 'Midwife') {
-                $role->givePermissionTo(['vaccinations.view', 'vaccinations.record', 'midwife-care.view', 'midwife-care.record', 'vitals.midwife']);
+                $role->givePermissionTo(['vaccinations.view', 'vaccinations.record', 'midwife-care.view', 'midwife-care.record', 'vitals.midwife', 'history.view']);
             }
             if ($name === 'Nurse') {
                 $role->givePermissionTo(['followups.request', 'visits.prioritize']);
-                $role->givePermissionTo(['vitals.view', 'vitals.create', 'vitals.update']);
+                $role->givePermissionTo(['vitals.view', 'vitals.create', 'vitals.update', 'history.view']);
             }
             if ($name === 'Information Staff') {
                 $role->givePermissionTo(['patients.view', 'patients.create', 'patients.update', 'visits.view', 'visits.create', 'visits.complete', 'visits.prioritize', 'history.view']);

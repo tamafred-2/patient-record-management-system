@@ -31,11 +31,11 @@ class VisitSearchTest extends TestCase
             $this->get(route($route, ['search' => str_repeat('x', 101)]))->assertSessionHasErrors('search');
             $this->get(route('dashboard', ['search' => 'missing-person']))->assertOk()->assertDontSee($visit->visit_number)->assertSee('Search visits');
             $this->get(route('dashboard'))
-                ->assertSee($role === 'doctor' ? 'Review visit' : 'Open confirmation');
+                ->assertSee(route($role === 'doctor' ? 'consultations.show' : 'eligibility.edit', [$visit->patient, $visit]), false);
             if ($role === 'admin') {
-                $this->get(route('consultations.index', ['search' => 'SEARCH-042']))->assertForbidden();
+                $this->getJson(route('consultations.index', ['search' => 'SEARCH-042']))->assertForbidden();
                 $this->get(route('visits.index', ['search' => 'SEARCH-042']))->assertOk()->assertSee($visit->visit_number);
-                $this->get(route('dashboard'))->assertDontSee('Review visit');
+                $this->get(route('dashboard'))->assertDontSee(route('consultations.show', [$visit->patient, $visit]), false);
             }
         }
 

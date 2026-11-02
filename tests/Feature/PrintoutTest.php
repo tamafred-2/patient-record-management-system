@@ -66,7 +66,7 @@ class PrintoutTest extends TestCase
         }
         $this->as('pharmacist')->get(route('pharmacy.show', [$this->patient, $this->visit]))->assertSee($print, false);
         foreach (['nurse', 'medtech', 'admin', 'staff'] as $role) {
-            $this->as($role)->get($print)->assertForbidden();
+            $this->as($role)->getJson($print)->assertForbidden();
         }
         $this->as('doctor')->get(route('prints.prescription', [$this->other, $this->visit]))->assertNotFound();
         $this->assertSame(2, Activity::where('description', 'prescription.print_viewed')->count());
@@ -87,7 +87,7 @@ class PrintoutTest extends TestCase
         $this->get(route('prints.referral', [$this->patient, $this->visit, $certificate]))->assertNotFound();
         $this->get(route('prints.referral', [$this->other, $this->visit, $referral]))->assertNotFound();
         foreach (['nurse', 'medtech', 'pharmacist', 'admin', 'staff'] as $role) {
-            $this->as($role)->get($print)->assertForbidden();
+            $this->as($role)->getJson($print)->assertForbidden();
         }
         $this->assertSame(1, Activity::where('description', 'disposition.print_viewed')->count());
     }
@@ -109,14 +109,14 @@ class PrintoutTest extends TestCase
         $this->get(route('prints.external-lab', [$this->patient, $this->visit, $pending]))->assertNotFound();
         $this->get(route('prints.external-lab', [$this->other, $this->visit, $external]))->assertNotFound();
         foreach (['nurse', 'pharmacist', 'admin', 'staff'] as $role) {
-            $this->as($role)->get($print)->assertForbidden();
+            $this->as($role)->getJson($print)->assertForbidden();
         }
         $this->assertSame(2, Activity::where('description', 'laboratory.external_slip_viewed')->count());
     }
 
     public function test_print_center_lists_only_permitted_documents_per_role(): void
     {
-        $this->put(route('prescriptions.show', [$this->patient, $this->visit]), ['lock_version' => 0, 'items' => [['medicine_name' => 'Fictional medicine', 'dosage' => '1 tablet', 'frequency' => 'Once a day', 'quantity_prescribed' => '5']]])->assertSessionHasNoErrors();
+        $this->put(route('prescriptions.show', [$this->patient, $this->visit]), ['lock_version' => 0, 'items' => [['medicine_name' => 'Fictional medicine', 'dosage' => '1 tablet', 'frequency' => 'Once a day', 'duration' => '5 days', 'quantity_prescribed' => '5']]])->assertSessionHasNoErrors();
         $this->post(route('prescriptions.issue', [$this->patient, $this->visit]), ['lock_version' => 1, 'confirm' => 1])->assertSessionHasNoErrors();
         $this->post(route('dispositions.store', [$this->patient, $this->visit]), ['type' => 'FORMAL_REFERRAL', 'reason' => 'Fictional referral.', 'facility_name' => 'Fictional Hospital', 'submission_token' => (string) Str::uuid(), 'confirm' => 1])->assertSessionHasNoErrors();
         $page = route('print-center.patient', $this->patient);
@@ -132,10 +132,14 @@ class PrintoutTest extends TestCase
         $this->get(route('patients.show', $this->patient))->assertSee($page, false);
         $this->get(route('history.show', $this->patient))->assertSee($page, false)->assertSee(route('print-center.summary', $this->patient), false);
 
-        foreach (['nurse', 'medtech', 'pharmacist', 'admin'] as $role) {
-            $this->as($role)->get($page)->assertForbidden();
-            $this->get(route('print-center.summary', $this->patient))->assertForbidden();
+        // Clinical departments open the print center with only the documents they may print; Admin stays out.
+        foreach (['nurse', 'medtech', 'pharmacist'] as $role) {
+            $this->as($role)->get($page)->assertOk()->assertDontSee(route('visits.pdf', [$this->patient, $this->visit]), false);
+            $this->get(route('print-center.summary', $this->patient))->assertOk()->assertDontSee('Fictional Hospital');
         }
+        $this->as('pharmacist')->get($page)->assertSee(route('prints.prescription', [$this->patient, $this->visit]), false);
+        $this->as('admin')->getJson($page)->assertForbidden();
+        $this->getJson(route('print-center.summary', $this->patient))->assertForbidden();
     }
 
     public function test_patient_summary_shows_clinical_details_only_to_clinical_viewers(): void

@@ -13,7 +13,7 @@
     <h1 class="mt-5 text-3xl font-semibold">Vital signs and nurse assessment</h1>
     <section class="my-6 rounded-xl border border-slate-200 bg-white p-5">
         <div class="flex flex-wrap items-center gap-3"><h2 class="text-lg font-semibold">{{ $patient->full_name }}</h2><x-visit-priority-inline :patient="$patient" :visit="$visit" /></div>
-        <p class="mt-1 text-sm text-slate-600">{{ $patient->patient_number }} &middot; Birth date: {{ $patient->birth_date?->format('M j, Y') ?? 'Not recorded' }}</p>
+        <p class="mt-1 text-sm text-slate-600">{{ $patient->patient_number }} &middot; Birth date: {{ $patient->birth_date?->format('M j, Y') ?? 'Not recorded' }} @can('history.view') &middot; <a href="{{ route('history.show', $patient) }}" class="font-semibold text-emerald-800 underline">Patient file</a>@endcan</p>
         <p class="mt-2">{{ $visit->visit_number }} &middot; {{ $visit->visit_date->format('M j, Y') }} &middot; {{ $visit->service->name }}</p>
         <p class="mt-1 text-sm text-slate-600">Queue reference: {{ $visit->queue_reference ?? 'Not recorded' }} &middot; {{ $visit->status }}</p>
     </section>
@@ -65,6 +65,6 @@
         @else<p class="mt-6 text-sm text-slate-600">These measurements are read-only.</p>@endif
     </form>
     @can('followups.request')
-        <a class="mt-6 inline-block rounded-lg border border-emerald-700 px-5 py-3 font-semibold text-emerald-800" href="{{ route('followups.show', [$patient, $visit]) }}">Authorized follow-up tests</a>
+        <x-button variant="secondary" :href="route('followups.show', [$patient, $visit])" class="mt-6">Order lab tests</x-button>
     @endcan
 </x-layout>

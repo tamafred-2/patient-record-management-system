@@ -63,7 +63,7 @@ class VisitTest extends TestCase
         foreach (['System Admin', 'Doctor / Medical Officer', 'Nurse', 'MedTech', 'Pharmacist', 'Midwife'] as $role) {
             $user = User::factory()->create();
             $user->assignRole($role);
-            $this->actingAs($user)->get($url)->assertForbidden();
+            $this->actingAs($user)->getJson($url)->assertForbidden();
         }
         $this->actingAs($this->staff);
         $this->patient->delete();
@@ -129,8 +129,9 @@ class VisitTest extends TestCase
     public function test_today_uses_manila_date_and_history_includes_earlier_visits(): void
     {
         $this->travelTo(Carbon::parse('2026-09-24 18:00:00', 'UTC'));
+        $old = $this->createVisit();
+        $this->travel(1)->days();
         $today = $this->createVisit();
-        $old = $this->createVisit(['visit_date' => '2026-09-24']);
         $this->get('/visits')->assertSee($today->visit_number)->assertDontSee($old->visit_number);
         $this->get('/visits?from='.$old->visit_date->toDateString().'&to='.$old->visit_date->toDateString())->assertOk()->assertSee($old->visit_number)->assertDontSee($today->visit_number);
         $this->get('/visits?from=2026-02-31')->assertSessionHasErrors('from');
@@ -167,9 +168,21 @@ class VisitTest extends TestCase
         $this->assertDatabaseCount('visits', 1);
     }
 
+    public function test_new_visit_uses_today_without_a_date_field(): void
+    {
+        $this->travelTo(Carbon::parse('2026-09-24 18:00:00', 'UTC'));
+        $this->get(route('patients.visits.create', $this->patient))->assertOk()->assertDontSee('name="visit_date"', false);
+        $data = $this->data();
+        unset($data['visit_date']);
+        $this->post(route('patients.visits.store', $this->patient), $data)->assertSessionHasNoErrors()->assertRedirect();
+        $visit = Visit::latest('id')->firstOrFail();
+        $this->assertSame('2026-09-25', $visit->visit_date->toDateString());
+        $this->assertDatabaseHas('queue_reservations', ['visit_id' => $visit->id, 'queue_date' => '2026-09-25']);
+    }
+
     public function test_invalid_dates_and_inactive_services_cannot_create_visits(): void
     {
-        foreach (['1999-12-31', '2026-02-31', now('Asia/Manila')->addDay()->toDateString()] as $date) {
+        foreach ([now('Asia/Manila')->subDay()->toDateString(), '1999-12-31', '2026-02-31', now('Asia/Manila')->addDay()->toDateString()] as $date) {
             $this->post(route('patients.visits.store', $this->patient), $this->data(['visit_date' => $date]))->assertSessionHasErrors('visit_date');
         }
         $inactiveService = Service::firstOrFail();
@@ -185,9 +198,9 @@ class VisitTest extends TestCase
         $admin = User::factory()->create();
         $admin->assignRole('System Admin');
         $this->actingAs($admin)->get('/visits')->assertOk()->assertSee($visit->visit_number)->assertDontSee(route('patients.visits.show', [$this->patient, $visit]));
-        $this->get(route('patients.visits.create', $this->patient))->assertForbidden();
+        $this->getJson(route('patients.visits.create', $this->patient))->assertForbidden();
         $this->post(route('patients.visits.store', $this->patient), $this->data())->assertForbidden();
-        $this->get(route('patients.visits.show', [$this->patient, $visit]))->assertForbidden();
+        $this->getJson(route('patients.visits.show', [$this->patient, $visit]))->assertForbidden();
         $this->staff->is_active = false;
         $this->staff->save();
         $this->actingAs($this->staff)->post(route('patients.visits.store', $this->patient), $this->data())->assertRedirect('/login');
@@ -207,7 +220,7 @@ class VisitTest extends TestCase
     {
         $visit = $this->createVisit();
         $service = $visit->service;
-        $this->get('/services')->assertForbidden();
+        $this->getJson('/services')->assertForbidden();
         $this->post('/services', ['name' => 'Custom service', 'code' => 'CUSTOM'])->assertForbidden();
         $this->patch(route('services.update', $service), ['name' => 'Changed', 'is_active' => false])->assertForbidden();
         $admin = User::factory()->create();

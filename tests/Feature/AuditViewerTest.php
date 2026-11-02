@@ -52,7 +52,7 @@ class AuditViewerTest extends TestCase
         $this->event('patient.created', '2026-09-24 04:00:00', $this->admin);
         $response = $this->get('/audit?from=2026-09-24&to=2026-09-24&staff='.$staff->id.'&action=patient.created');
         $response->assertOk()->assertSee('1 matching events')->assertSee('Patient registered')->assertSee('Patient #123')->assertSee('Event #'.$match->id)->assertDontSee('Fictional confidential content')->assertDontSee('Never display this')->assertDontSee($staff->email);
-        $this->get('/patients')->assertForbidden();
+        $this->getJson('/patients')->assertForbidden();
     }
 
     public function test_unknown_events_system_and_missing_actor_are_safe(): void
@@ -86,7 +86,7 @@ class AuditViewerTest extends TestCase
         foreach (['Information Staff', 'Nurse', 'Doctor / Medical Officer', 'MedTech', 'Pharmacist', 'Midwife'] as $role) {
             $user = User::factory()->create();
             $user->assignRole($role);
-            $this->actingAs($user)->get('/audit')->assertForbidden();
+            $this->actingAs($user)->getJson('/audit')->assertForbidden();
         }
         $this->actingAs($this->admin)->delete('/audit')->assertStatus(405);
         auth()->logout();

@@ -29,12 +29,12 @@
                 @if($review['pendingAssessments'])<p class="text-amber-800">The nurse must complete the requested reassessment, or a doctor must withdraw the request with a reason, before this visit can close.</p>@endif
                 <p class="text-amber-800">Complete the pending laboratory work or record external laboratory advice where applicable. Any prescription draft must be reviewed and issued by its doctor before this visit can close.</p>
             @else
-                @if($review['unreleased'])<p class="text-amber-800">Check with Pharmacy before closing. Some medicines have not been released. Explain the actual reason, such as unavailable medicine or the patient declining the remaining supply. Completion does not mark these medicines as dispensed.</p>@endif
+                @if($review['unreleased'])<p class="text-slate-600">The visit ends with the issued prescription. Pharmacy keeps its own release records and can still release the remaining medicines after completion.</p>@endif
                 <form method="POST" action="{{ route('visits.complete', [$patient, $visit]) }}" class="space-y-5 pt-3">
                     @csrf
                     <input type="hidden" name="review_version" value="{{ old('review_version', $review['version']) }}">
-                    <div><label for="completion_remarks" class="mb-2 block font-medium">Completion remarks ({{ $review['unreleased'] ? 'required for unreleased medicines' : 'optional' }})</label><textarea id="completion_remarks" name="completion_remarks" rows="3" maxlength="1000" @required($review['unreleased']) class="w-full rounded-lg border border-slate-300 p-3">{{ old('completion_remarks') }}</textarea></div>
-                    <label class="flex items-start gap-3"><input type="checkbox" name="confirm" value="1" required class="mt-1"><span>I have checked that no further service is needed during this visit. Completing it prevents further clinical edits and medicine releases until authorized staff reopen it for correction.</span></label>
+                    <div><label for="completion_remarks" class="mb-2 block font-medium">Completion remarks (optional)</label><textarea id="completion_remarks" name="completion_remarks" rows="3" maxlength="1000" class="w-full rounded-lg border border-slate-300 p-3">{{ old('completion_remarks') }}</textarea></div>
+                    <label class="flex items-start gap-3"><input type="checkbox" name="confirm" value="1" required class="mt-1"><span>I have checked that no further service is needed during this visit. Completing it prevents further clinical edits until authorized staff reopen it for correction. Pharmacy can still record medicine releases.</span></label>
                     <x-button>Complete visit</x-button>
                 </form>
             @endif

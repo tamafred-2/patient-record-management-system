@@ -76,8 +76,30 @@ class AccountRoleMatrixTest extends TestCase
         $doctor = User::factory()->create(['primary_role' => 'Doctor / Medical Officer']);
         $doctor->assignRole(['Doctor / Medical Officer', 'Nurse']);
         $doctor->givePermissionTo(['users.manage', 'roles.manage']);
-        $this->actingAs($doctor)->get('/staff')->assertForbidden();
+        $this->actingAs($doctor)->getJson('/staff')->assertForbidden();
         $this->patch(route('staff.update', $doctor), ['roles' => ['System Admin'], 'is_active' => true])->assertForbidden();
+    }
+
+    public function test_admin_can_give_a_nurse_the_information_staff_role(): void
+    {
+        $nurse = User::factory()->create(['primary_role' => 'Nurse']);
+        $nurse->assignRole('Nurse');
+        $this->assertFalse($nurse->can('patients.create'));
+        $this->get(route('staff.edit', $nurse))->assertOk()->assertSee('value="Information Staff"', false);
+
+        $this->patch(route('staff.update', $nurse), ['roles' => ['Nurse', 'Information Staff'], 'is_active' => true])->assertSessionHasNoErrors()->assertRedirect('/staff');
+        $nurse = $nurse->fresh();
+        $this->assertSame('Nurse', $nurse->primary_role);
+        $this->assertTrue($nurse->hasAllRoles(['Nurse', 'Information Staff']));
+        $this->assertTrue($nurse->can('vitals.create') && $nurse->can('patients.create') && $nurse->can('visits.create'));
+        $this->assertFalse($nurse->can('itr.create'));
+        $this->actingAs($nurse)->get('/dashboard')->assertOk();
+        $this->get('/patients/create')->assertOk();
+        $this->get('/assessments')->assertOk();
+
+        // Removing the extra role takes registration access away again.
+        $this->actingAs(User::role('System Admin')->firstOrFail())->patch(route('staff.update', $nurse), ['roles' => ['Nurse'], 'is_active' => true])->assertSessionHasNoErrors();
+        $this->assertFalse($nurse->fresh()->can('patients.create'));
     }
 
     public function test_creation_rejects_forbidden_additional_roles(): void

@@ -55,7 +55,7 @@ class PrescriptionController extends Controller
             'items.*.strength' => ['nullable', 'string', 'max:100'],
             'items.*.dosage' => ['required', 'string', 'max:200'],
             'items.*.frequency' => ['required', 'string', 'max:200'],
-            'items.*.duration' => ['nullable', 'string', 'max:200'],
+            'items.*.duration' => ['required', 'string', 'max:200'],
             'items.*.instructions' => ['nullable', 'string', 'max:1000'],
             'items.*.quantity_prescribed' => ['required', 'integer', 'min:1', 'max:99999999'],
         ];

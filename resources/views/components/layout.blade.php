@@ -1,4 +1,4 @@
-@props(['title' => 'Dashboard', 'showGuestHeader' => true])
+@props(['title' => 'Dashboard', 'showGuestHeader' => true, 'showValidationModal' => true])
 {{-- Scroll-queue batches are returned as JSON, so they skip the notification count. --}}
 @php($unreadNotifications = auth()->check() && ! request()->hasHeader('X-Scroll-Queue') ? auth()->user()->unreadNotifications()->count() : 0)
 <!DOCTYPE html>
@@ -96,9 +96,6 @@
                 @can('consultations.view')
                     <a href="{{ route('consultations.index') }}" aria-label="Doctor visits" title="Doctor visits" @if(request()->routeIs('consultations.*', 'itr.*')) aria-current="page" @endif class="sidebar-link"><x-sidebar-icon name="visits" /><span class="sidebar-label">Doctor visits</span></a>
                 @endcan
-                @if(App\Support\FollowupAccess::doctor(auth()->user()))
-                    <a href="{{ route('nurse-authorizations.index') }}" aria-label="Nurse authorization" title="Nurse authorization" @if(request()->routeIs('nurse-authorizations.*')) aria-current="page" @endif class="sidebar-link"><x-sidebar-icon name="staff" /><span class="sidebar-label">Nurse authorization</span></a>
-                @endif
                 @can('laboratory.view')
                     <a href="{{ route('laboratory.index') }}" aria-label="Laboratory" title="Laboratory" @if(request()->routeIs('laboratory.*')) aria-current="page" @endif class="sidebar-link"><x-sidebar-icon name="visits" /><span class="sidebar-label">Laboratory</span></a>
                 @endcan
@@ -113,6 +110,9 @@
                 @endcan
                 @can('pharmacy.view')
                     <a href="{{ route('pharmacy.index') }}" aria-label="Pharmacy" title="Pharmacy" @if(request()->routeIs('pharmacy.*')) aria-current="page" @endif class="sidebar-link"><x-sidebar-icon name="visits" /><span class="sidebar-label">Pharmacy</span></a>
+                @endcan
+                @can('inventory.view')
+                    <a href="{{ route('inventory.index') }}" aria-label="Inventory" title="Inventory" @if(request()->routeIs('inventory.*')) aria-current="page" @endif class="sidebar-link"><x-sidebar-icon name="inventory" /><span class="sidebar-label">Inventory</span></a>
                 @endcan
                 @can('analytics.view')
                     <a href="{{ route('analytics.index') }}" aria-label="Analytics" title="Analytics" @if(request()->routeIs('analytics.*')) aria-current="page" @endif class="sidebar-link"><x-sidebar-icon name="analytics" /><span class="sidebar-label">Analytics</span></a>
@@ -165,23 +165,21 @@
         @endif
     @endauth
     <div @class(['staff-content' => auth()->check()])>
-        @auth
-            <header class="page-header sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-                <div class="page-header-inner mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3 sm:px-8">
-                    <p class="min-w-0 truncate text-base font-semibold text-slate-800 sm:text-lg">{{ $title }}</p>
-                    <div class="flex shrink-0 items-center gap-3">
-                        @unless(auth()->user()->must_change_password)<x-notification-bell :unread="$unreadNotifications" />@endunless
-                    </div>
-                </div>
-            </header>
-        @endauth
         <main id="main" tabindex="-1" class="mx-auto min-w-0 max-w-6xl px-5 py-8 sm:px-8 lg:py-10">
-            @if(session('status'))<x-alert class="mb-6" dismissible>{{ session('status') }}</x-alert>@endif
-            @if(session('auth_notice'))<x-alert type="error" title="Session updated" class="mb-6">{{ session('auth_notice') }}</x-alert>@endif
-            {{ $slot }}
+            @php($showBell = auth()->check() && ! auth()->user()->must_change_password)
+            {{-- Pages own their headings; the bell sits in a pinned top-right column instead of a separate top bar. --}}
+            <div @class(['flex flex-col-reverse gap-3 lg:flex-row lg:items-start lg:gap-4' => $showBell])>
+                <div class="min-w-0 flex-1">
+                @if(session('status'))<x-alert class="mb-6" dismissible>{{ session('status') }}</x-alert>@endif
+                @if(session('auth_notice'))<x-alert type="error" title="Session updated" class="mb-6">{{ session('auth_notice') }}</x-alert>@endif
+                @if(session('access_warning'))<div role="alert" class="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">{{ session('access_warning') }}</div>@endif
+                {{ $slot }}
+                </div>
+                @if($showBell)<div class="page-bell z-40 self-end lg:sticky lg:top-4 lg:self-start"><x-notification-bell :unread="$unreadNotifications" /></div>@endif
+            </div>
         </main>
     </div>
-    <x-validation-modal />
+    @if($showValidationModal)<x-validation-modal />@endif
     @auth
         @unless(auth()->user()->must_change_password)
             <div id="notification-toasts" data-notification-poll="{{ route('notifications.poll') }}" data-notifications-url="{{ route('notifications.index') }}" aria-live="polite" class="pointer-events-none fixed bottom-4 right-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2"></div>

@@ -31,7 +31,7 @@ class DiagnosisLabelsTest extends TestCase
         $url = route('itr.edit', [$visit->patient, $visit]);
         $this->actingAs(User::where('email', 'doctor@rhu.test')->firstOrFail())->get($url)->assertOk()->assertSee('Choose a diagnosis')->assertViewHas('diagnosisSuggestions', ['fictional condition alpha']);
         foreach (['admin', 'nurse', 'pharmacist', 'information', 'medtech', 'midwife'] as $role) {
-            $this->actingAs(User::where('email', $role.'@rhu.test')->firstOrFail())->get($url)->assertForbidden()->assertDontSee('fictional condition alpha');
+            $this->actingAs(User::where('email', $role.'@rhu.test')->firstOrFail())->getJson($url)->assertForbidden()->assertDontSee('fictional condition alpha');
         }
     }
 }

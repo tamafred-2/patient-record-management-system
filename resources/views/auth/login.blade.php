@@ -1,4 +1,4 @@
-<x-layout title="Login" :show-guest-header="false">
+<x-layout title="Login" :show-guest-header="false" :show-validation-modal="false">
     <section x-data="{}" aria-labelledby="login-heading" class="login-shell mx-auto my-3 grid max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white font-sans shadow-xl shadow-slate-200/50 lg:my-10 lg:grid-cols-2">
         <div class="relative overflow-hidden bg-emerald-950 px-7 py-9 text-white sm:px-10 lg:flex lg:flex-col lg:justify-between lg:p-12">
             <div aria-hidden="true" class="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full border border-white/10"></div>
@@ -20,18 +20,23 @@
         <div class="flex flex-col justify-center px-7 py-10 sm:px-12 lg:py-14">
             <h1 id="login-heading" class="text-3xl font-semibold tracking-tight text-slate-900 ">Login</h1>
             <p class="mt-3 text-sm leading-6 text-slate-500">Sign in with your assigned account to access your workspace.</p>
-            <form method="POST" action="{{ route('login.store') }}" class="mt-8 space-y-6" x-data="{ showPassword: false }">
+            @if($errors->any())
+                <x-alert type="error" id="login-error" :title="false" class="mt-6">{{ $errors->first() }}</x-alert>
+            @endif
+            <form method="POST" action="{{ route('login.store') }}" class="{{ $errors->any() ? 'mt-6' : 'mt-8' }} space-y-6" x-data="{ showPassword: false }">
                 @csrf
-                <x-input name="email" label="Email address" type="email" autocomplete="username" placeholder="Enter your email address" required autofocus />
+                <div>
+                    <label for="email" class="mb-2 block text-sm font-medium">Email address</label>
+                    <input id="email" name="email" type="email" value="{{ old('email') }}" autocomplete="username" placeholder="Enter your email address" required autofocus class="w-full rounded-lg border bg-white px-3 py-2.5 focus:border-emerald-700 focus:outline-2 focus:outline-emerald-700 {{ $errors->has('email') ? 'border-red-400' : 'border-slate-300' }}" @error('email') aria-invalid="true" aria-describedby="login-error" @enderror>
+                </div>
                 <div>
                     <label for="password" class="mb-2 block text-sm font-medium">Password</label>
                     <div class="relative">
-                        <input id="password" name="password" type="password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" required placeholder="Enter your password" class="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-3 pr-12 focus:border-emerald-700 focus:outline-2 focus:outline-emerald-700" @error('password') aria-invalid="true" aria-describedby="password-error" @enderror>
+                        <input id="password" name="password" type="password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" required placeholder="Enter your password" class="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-3 pr-12 focus:border-emerald-700 focus:outline-2 focus:outline-emerald-700" @error('password') aria-invalid="true" aria-describedby="login-error" @enderror>
                         <button type="button" @click="showPassword = !showPassword" :aria-label="showPassword ? 'Hide password' : 'Show password'" :aria-pressed="showPassword.toString()" aria-label="Show password" aria-controls="password" class="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-lg text-slate-500 hover:text-emerald-800 focus-visible:outline-2 focus-visible:outline-emerald-700">
                             <svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path x-show="showPassword" x-cloak stroke-linecap="round" d="m3 3 18 18"/></svg>
                         </button>
                     </div>
-                    @error('password')<p id="password-error" class="mt-2 text-sm text-red-700" role="alert">{{ $message }}</p>@enderror
                 </div>
                 <div class="flex justify-end text-sm">
                     <a href="{{ route('password.request') }}" @click.prevent="$refs.passwordHelp.showModal()" aria-haspopup="dialog" class="font-medium text-emerald-700 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-emerald-700">Forgot password?</a>

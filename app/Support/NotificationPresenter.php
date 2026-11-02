@@ -121,7 +121,7 @@ class NotificationPresenter
             "{$actor} (doctor) {$word} your laboratory ordering authorization",
             $state === 'off' ? 'You can no longer order laboratory tests until a doctor turns it on again.' : 'For patients you assess · Permitted: '.$grant->allowedTestsLabel(),
             $grant->revoked_at ? 'No longer active' : ($grant->usable() ? 'Active' : 'Not usable: ask a doctor to renew it'),
-            $state === 'off' ? null : route('assessments.index', ['authorized' => 1]),
+            null,
         );
     }
 

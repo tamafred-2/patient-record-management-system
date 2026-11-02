@@ -50,15 +50,6 @@ class Visit extends Model
         return $label;
     }
 
-    // Open visits where this nurse can order laboratory tests: a usable legacy per-visit grant, or their standing
-    // authorization for patients whose assessment they saved. $standing is the nurse's usable standing authority, if any.
-    public function scopeOrderableBy(Builder $query, User $nurse, bool $standing): Builder
-    {
-        return $query->where('status', self::OPEN)
-            ->whereHas('vitalSign', fn ($vital) => $vital->where(fn ($by) => $by->where('recorded_by', $nurse->id)->orWhere('updated_by', $nurse->id)))
-            ->when(! $standing, fn ($match) => $match->whereHas('followupAuthorizations', fn ($grant) => $grant->availableTo($nurse)));
-    }
-
     // Emergency first, then priority, then regular; newest first within a level. Both columns are non-null for cursor pagination.
     public function scopePriorityFirst(Builder $query): Builder
     {
@@ -110,6 +101,20 @@ class Visit extends Model
     public function isOpen(): bool
     {
         return $this->status === self::OPEN;
+    }
+
+    // Overdue, Today or Upcoming relative to the given day (start of day, Asia/Manila).
+    public function followUpStatus(\DateTimeInterface $today): ?string
+    {
+        if (! $this->follow_up_on) {
+            return null;
+        }
+
+        return match (true) {
+            $this->follow_up_on->lt($today) => 'Overdue',
+            $this->follow_up_on->isSameDay($today) => 'Today',
+            default => 'Upcoming',
+        };
     }
 
     protected function casts(): array

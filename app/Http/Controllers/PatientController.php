@@ -23,19 +23,16 @@ class PatientController extends Controller
     public function index(Request $request)
     {
         Gate::authorize('viewAny', Patient::class);
-        $barangays = Patient::whereNotNull('barangay')->where('barangay', '!=', '')->distinct()->orderBy('barangay')->pluck('barangay');
         $data = $request->validate([
             'q' => ['nullable', 'string', 'max:150'],
             'sex' => ['nullable', Rule::in(Patient::SEX_OPTIONS)],
             'age' => ['nullable', Rule::in(array_keys(self::AGE_GROUPS))],
-            'barangay' => ['nullable', 'string', 'max:150'],
             'visits' => ['nullable', Rule::in(array_keys(self::VISIT_FILTERS))],
         ]);
         $search = trim($data['q'] ?? '');
         $query = Patient::query();
         TableSearch::apply($query, $search, Patient::SEARCH_COLUMNS);
         $query->when($data['sex'] ?? null, fn ($query, $sex) => $query->where('sex', $sex))
-            ->when($data['barangay'] ?? null, fn ($query, $barangay) => $query->where('barangay', $barangay))
             ->when($data['age'] ?? null, function ($query, $age) {
                 // Age is compared through birth-date cutoffs so the filter works on SQLite and PostgreSQL alike.
                 $today = now('Asia/Manila')->startOfDay();
@@ -56,7 +53,6 @@ class PatientController extends Controller
             'filterOptions' => [
                 'sex' => ['label' => 'Sex', 'options' => array_combine(Patient::SEX_OPTIONS, Patient::SEX_OPTIONS)],
                 'age' => ['label' => 'Age group', 'options' => self::AGE_GROUPS],
-                'barangay' => ['label' => 'Barangay', 'options' => $barangays->combine($barangays)->all()],
                 'visits' => ['label' => 'Visits', 'options' => self::VISIT_FILTERS],
             ],
         ]);

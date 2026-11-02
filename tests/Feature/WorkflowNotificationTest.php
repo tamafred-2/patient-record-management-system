@@ -92,7 +92,7 @@ class WorkflowNotificationTest extends TestCase
         $this->actingAs($this->doctor)->get(route('notifications.index'))->assertSee('Urinalysis for '.$this->patient->full_name.': Completed at RHU');
 
         $this->put(route('itr.save', [$this->patient, $visit]), ['lock_version' => 0, 'vitals_version' => $visit->fresh()->vitalSign->lock_version, 'assessment' => 'Fictional assessment'])->assertSessionHasNoErrors();
-        $this->put(route('prescriptions.show', [$this->patient, $visit]), ['lock_version' => 0, 'items' => [['medicine_name' => 'Fictional medicine', 'dosage' => 'Example', 'frequency' => 'Example', 'quantity_prescribed' => '2']]])->assertSessionHasNoErrors();
+        $this->put(route('prescriptions.show', [$this->patient, $visit]), ['lock_version' => 0, 'items' => [['medicine_name' => 'Fictional medicine', 'dosage' => 'Example', 'frequency' => 'Example', 'duration' => '5 days', 'quantity_prescribed' => '2']]])->assertSessionHasNoErrors();
         $this->post(route('prescriptions.issue', [$this->patient, $visit]), ['lock_version' => 1, 'confirm' => 1])->assertSessionHasNoErrors();
         $this->assertSame(1, $this->alerts($this->pharmacist, 'prescription_issued'));
         $this->assertSame(0, $this->doctor->notifications()->get()->where('data.kind', 'prescription_issued')->count());
@@ -134,7 +134,7 @@ class WorkflowNotificationTest extends TestCase
         $this->nurse->removeRole('Nurse');
         $this->nurse->assignRole('Pharmacist');
         $this->actingAs($this->nurse->fresh())->get(route('notifications.index'))->assertOk()->assertSee('New visit waiting for assessment')->assertDontSee($this->patient->full_name);
-        $this->get(route('notifications.open', $notification->id))->assertForbidden();
+        $this->getJson(route('notifications.open', $notification->id))->assertForbidden();
         auth()->logout();
         $this->getJson(route('notifications.poll'))->assertUnauthorized();
     }
@@ -160,6 +160,13 @@ class WorkflowNotificationTest extends TestCase
         $this->assertStringNotContainsString('Fictional recheck', Activity::where('description', 'visit.follow_up_scheduled')->sole()->properties->toJson());
         $this->get(route('consultations.show', [$this->patient, $visit]))->assertSee('Fictional recheck of fever.');
         $this->actingAs($this->staff)->get('/dashboard')->assertSee('Follow-up return visits')->assertSee('Upcoming')->assertSee('Fictional recheck of fever.');
+        $this->get('/dashboard?followup_search='.urlencode($this->patient->patient_number))->assertOk()
+            ->assertViewHas('followUps', fn ($rows) => $rows->count() === 1)
+            ->assertSee('data-server-filtered', false);
+        $this->get('/dashboard?followup_search=unmatched-fictional-patient')->assertOk()
+            ->assertViewHas('followUps', fn ($rows) => $rows->isEmpty())
+            ->assertSee('No matching follow-up return visits.');
+        $this->get('/dashboard?followup_search='.str_repeat('a', 101))->assertSessionHasErrors('followup_search');
         $this->assertSame(0, FollowUpReminders::dispatchDue(true));
 
         $this->travel(3)->days();
@@ -172,7 +179,7 @@ class WorkflowNotificationTest extends TestCase
         $this->get(route('notifications.index'))->assertSee('Follow-up visit due');
 
         $this->register();
-        $this->get('/dashboard')->assertDontSee('Follow-up return visits');
+        $this->get('/dashboard')->assertSee('No follow-up return visits due within the next 7 days.');
         $this->assertSame(0, FollowUpReminders::outstanding()->count());
     }
 

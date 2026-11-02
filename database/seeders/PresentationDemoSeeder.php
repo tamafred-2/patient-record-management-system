@@ -8,16 +8,19 @@ use App\Models\DispositionRecord;
 use App\Models\EligibilityCheck;
 use App\Models\LaboratoryRecord;
 use App\Models\MedicalCertificate;
+use App\Models\Medicine;
+use App\Models\MedicineBatch;
 use App\Models\MidwifeCareRecord;
-use App\Models\NurseAuthorization;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\Service;
+use App\Models\StockMovement;
 use App\Models\TreatmentRecord;
 use App\Models\User;
 use App\Models\VaccinationRecord;
 use App\Models\Visit;
 use App\Models\VitalSign;
+use App\Support\Inventory;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -47,6 +50,12 @@ class PresentationDemoSeeder extends Seeder
 
     private array $pool = [];
 
+    /** @var array<string, Medicine> Stock items keyed by lower-cased medicine name. */
+    private array $stock = [];
+
+    /** @var array<string, int> Size of one delivery per medicine, in hundredths, used when stock runs low. */
+    private array $delivery = [];
+
     private CarbonImmutable $day;
 
     public function run(): void
@@ -68,6 +77,7 @@ class PresentationDemoSeeder extends Seeder
             $this->call([RolePermissionSeeder::class, ServiceSeeder::class, UserSeeder::class]);
             $this->prepareStaff();
             $this->createPatients();
+            $this->createInventory();
             $previousPrefix = null;
             for ($date = CarbonImmutable::parse(self::START, 'Asia/Manila'); $date->lt($this->day); $date = $date->addDay()) {
                 if ($date->isWeekend()) {
@@ -94,12 +104,6 @@ class PresentationDemoSeeder extends Seeder
         foreach (['CONSULTATION', 'LABORATORY', 'MEDICAL_CERTIFICATE', 'MIDWIFE_CARE', 'VACCINATION'] as $key) {
             $this->services[$key] = Service::where('seed_key', $key)->firstOrFail();
         }
-        NurseAuthorization::forceCreate([
-            'nurse_id' => $this->users['nurse']->id, 'doctor_id' => $this->users['doctor']->id, 'allow_any_test' => false,
-            'allowed_tests' => ['Urinalysis', 'Complete blood count (CBC)', 'Fasting blood sugar (FBS)'],
-            'instructions' => 'Order only when the assessment shows a clear indication; inform me at the next review.',
-            'created_at' => CarbonImmutable::parse(self::START, 'Asia/Manila')->setTime(8, 0), 'updated_at' => CarbonImmutable::parse(self::START, 'Asia/Manila')->setTime(8, 0),
-        ]);
     }
 
     private function createPatients(): void
@@ -187,6 +191,8 @@ class PresentationDemoSeeder extends Seeder
             return $this->visit($person, $service, $date, $at($minutes), $prefix, ++$number, $emergency);
         };
 
+        $this->finishInventory($date->setTime(7, 30));
+
         // 1. Information Staff: just registered, waiting for the nurse (senior priority, emergency, regular).
         $open($pick(fn ($p) => $p['age'] >= 65), 'CONSULTATION', 0);
         $open($pick(fn ($p) => $p['age'] >= 25 && $p['age'] < 60), 'CONSULTATION', 5, true);
@@ -225,7 +231,9 @@ class PresentationDemoSeeder extends Seeder
             $this->prescription($visit, $itr, $at($minutes + 30), $this->medicinesFor($person['chronic']), true);
         }
 
-        // 6. Pharmacy: partial release with a generic substitute, the rest bought outside.
+        // 6. Pharmacy: partial release with a generic substitute, the rest bought outside. A count correction first
+        // leaves exactly 30 Metformin tablets, so this release empties the stock.
+        $this->setStock('metformin', 3000, $at(70), 'Physical count correction: morning count');
         $person = $pick(fn ($p) => $p['chronic'] === 'Type 2 diabetes mellitus');
         $visit = $open($person, 'CONSULTATION', 36);
         $this->vitals($visit, $person, $at(42), 'For refill of maintenance medicines.');
@@ -233,23 +241,23 @@ class PresentationDemoSeeder extends Seeder
         $rx = $this->prescription($visit, $itr, $at(60), [['Metformin', '500 mg', '60'], ['Losartan', '50 mg', '30']], true);
         $this->dispense($rx, $at(75), [[30, 'Metformin (generic, other manufacturer) 500 mg', 'BUY_OUTSIDE', 'Only 30 tablets in stock at RHU'], [30, null, null, null]]);
 
-        // 7. Laboratory: doctor ordered two tests (pending) and a nurse add-on order under the standing authorization.
+        // 7. Laboratory: a doctor ordered two tests (pending) and a nurse ordered one directly.
         $person = $pick(fn ($p) => $p['age'] >= 30);
         $visit = $open($person, 'CONSULTATION', 40);
         $this->vitals($visit, $person, $at(46), 'Fatigue and frequent urination for two weeks.');
         $this->itr($visit, $person, $at(58), 'Type 2 diabetes mellitus');
-        $this->labOrder($visit, ['Fasting blood sugar (FBS)', 'Urinalysis'], $this->users['doctor'], null, $at(62), 'Rule out uncontrolled blood sugar and urinary tract infection.', false);
+        $this->labOrder($visit, ['Fasting blood sugar (FBS)', 'Urinalysis'], $this->users['doctor'], $at(62), 'Rule out uncontrolled blood sugar and urinary tract infection.', false);
         $person = $pick(fn ($p) => $p['age'] >= 18 && $p['female']);
         $visit = $open($person, 'CONSULTATION', 44);
         $this->vitals($visit, $person, $at(50), 'Dysuria and lower abdominal discomfort since yesterday.');
-        $this->labOrder($visit, ['Urinalysis'], $this->users['nurse'], NurseAuthorization::firstOrFail(), $at(55), 'Burning sensation on urination; standing authorization for urinalysis.', false);
+        $this->labOrder($visit, ['Urinalysis'], $this->users['nurse'], $at(55), 'Burning sensation on urination after the nurse assessment.', false);
 
         // 8. Results released by MedTech, back with the doctor.
         $person = $pick(fn ($p) => $p['age'] >= 18);
         $visit = $open($person, 'CONSULTATION', 48);
         $this->vitals($visit, $person, $at(54), 'Fever for three days, body malaise.');
         $this->itr($visit, $person, $at(64), 'Upper respiratory tract infection');
-        $this->labOrder($visit, ['Complete blood count (CBC)'], $this->users['doctor'], null, $at(66), 'Fever for three days; check white blood cell and platelet counts.', true);
+        $this->labOrder($visit, ['Complete blood count (CBC)'], $this->users['doctor'], $at(66), 'Fever for three days; check white blood cell and platelet counts.', true);
 
         // 9. Walk-in laboratory service.
         $this->directLaboratory($open($pick(fn ($p) => $p['age'] >= 18), 'LABORATORY', 52), $at(52), false);
@@ -275,6 +283,68 @@ class PresentationDemoSeeder extends Seeder
         foreach ($due as $visit) {
             $visit->forceFill(['follow_up_on' => $date->toDateString(), 'follow_up_notified_at' => null])->save();
         }
+    }
+
+    /** Every prescribed medicine is stocked from the start of the dataset, with a few demo states for the presentation. */
+    private function createInventory(): void
+    {
+        $start = CarbonImmutable::parse(self::START, 'Asia/Manila');
+        $pharmacist = $this->users['pharmacist'];
+        $items = [
+            // name, strength, form, low-stock level, quantity received, months until expiry
+            ['Amlodipine', '5 mg', 'Tablet', 300, 6000, 18], ['Losartan', '50 mg', 'Tablet', 300, 3200, 18], ['Metformin', '500 mg', 'Tablet', 500, 12000, 18],
+            ['Oral rehydration salts', '1 sachet', 'Sachet', 50, 600, 24], ['Zinc sulfate', '20 mg', 'Tablet', 50, 800, 24], ['Cetirizine', '10 mg', 'Tablet', 100, 1500, 20],
+            ['Nitrofurantoin', '100 mg', 'Capsule', 60, 800, 20], ['Salbutamol', '2 mg', 'Tablet', 60, 420, 20], ['Mupirocin ointment', '2%', 'Ointment / cream (tube)', 10, 60, 20],
+            ['Cloxacillin', '500 mg', 'Capsule', 100, 1500, 20], ['Paracetamol', '500 mg', 'Tablet', 300, 6000, 24], ['Amoxicillin', '500 mg', 'Capsule', 200, 4000, 20],
+        ];
+        foreach ($items as [$name, $strength, $form, $level, $quantity, $months]) {
+            $medicine = Medicine::forceCreate(['name' => $name, 'strength' => $strength, 'form' => $form, 'lookup_key' => Medicine::lookupKey($name, $strength, $form),
+                'reorder_level' => $level, 'created_by' => $pharmacist->id, 'created_at' => $start->setTime(7, 0), 'updated_at' => $start->setTime(7, 0)]);
+            $this->receiveAt($medicine, $quantity * 100, $start->setTime(7, 10), $start->addMonths($months)->toDateString(), 'DOH allocation');
+            $this->stock[mb_strtolower($name)] = $medicine;
+            $this->delivery[mb_strtolower($name)] = $quantity * 100;
+        }
+        // An expired Cetirizine lot to dispose of.
+        $expired = $this->receiveAt($this->stock['cetirizine'], 20000, $start->setTime(7, 20), $this->day->subDays(5)->toDateString(), 'Donation');
+        $expired->forceFill(['batch_number' => 'CTZ-DONATED'])->save();
+    }
+
+    private function receiveAt(Medicine $medicine, int $quantity, CarbonImmutable $time, string $expiry, string $supplier): MedicineBatch
+    {
+        $batch = Inventory::receive($medicine, $quantity, ['received_on' => $time->toDateString(), 'expiry_date' => $expiry, 'supplier' => $supplier,
+            'batch_number' => strtoupper(substr($medicine->name, 0, 3)).'-'.$time->format('ymd')], $this->users['pharmacist']);
+        $batch->forceFill(['created_at' => $time, 'updated_at' => $time])->save();
+        StockMovement::where('medicine_batch_id', $batch->id)->where('type', 'RECEIVED')->update(['created_at' => $time, 'updated_at' => $time]);
+
+        return $batch;
+    }
+
+    /** Records count corrections so a medicine has exactly the given usable stock (hundredths) at that time. */
+    private function setStock(string $name, int $target, CarbonImmutable $time, string $reason): void
+    {
+        $medicine = $this->stock[$name]->fresh('batches');
+        $difference = $target - $medicine->available();
+        foreach ($medicine->batches->reject(fn (MedicineBatch $batch) => $batch->isExpired()) as $batch) {
+            if ($difference === 0) {
+                break;
+            }
+            $change = $difference > 0 ? $difference : max($difference, -(int) round($batch->quantity_remaining * 100));
+            if ($change === 0) {
+                continue;
+            }
+            Inventory::adjust($batch, $change, $reason, $this->users['pharmacist']);
+            $difference -= $change;
+        }
+        StockMovement::where('medicine_id', $medicine->id)->where('type', 'ADJUSTED')->whereDate('created_at', now()->toDateString())->update(['created_at' => $time, 'updated_at' => $time]);
+    }
+
+    /** Presentation-day stock states: low Losartan, no Salbutamol, and an October Amoxicillin delivery that expires soon. */
+    private function finishInventory(CarbonImmutable $time): void
+    {
+        // Added after the history so earlier releases (earliest expiry first) do not use it up.
+        $this->receiveAt($this->stock['amoxicillin'], 50000, $this->day->subDays(6)->setTime(9, 0), $this->day->addDays(40)->toDateString(), 'LGU procurement');
+        $this->setStock('losartan', 15000, $time, 'Physical count correction');
+        $this->setStock('salbutamol', 0, $time, 'Damaged: water exposure');
     }
 
     private function serviceFor(array $person, int $roll): string
@@ -333,7 +403,7 @@ class PresentationDemoSeeder extends Seeder
         }
         if ($historical && $this->pick($seed.'-lab', 100) < 18) {
             $this->labOrder($visit, [$diagnosis === 'Urinary tract infection' ? 'Urinalysis' : ($person['chronic'] === 'Type 2 diabetes mellitus' ? 'Fasting blood sugar (FBS)' : 'Complete blood count (CBC)')],
-                $this->users['doctor'], null, $time->addMinutes(42), 'Laboratory work-up for the working diagnosis.', true);
+                $this->users['doctor'], $time->addMinutes(42), 'Laboratory work-up for the working diagnosis.', true);
         }
         if ($historical && $this->pick($seed.'-ref', 100) < 4) {
             DispositionRecord::forceCreate(['visit_id' => $visit->id, 'submission_token' => (string) Str::uuid(), 'type' => $this->pick($seed.'-reftype', 2) ? 'ADVISED_HIGHER_FACILITY' : 'FORMAL_REFERRAL',
@@ -424,13 +494,22 @@ class PresentationDemoSeeder extends Seeder
             if ($quantity === 0 && $closed === 0) {
                 continue;
             }
-            $release->items()->create(['prescription_item_id' => $item->id, 'quantity_dispensed' => $quantity, 'released_as' => $releasedAs,
+            $medicine = $quantity > 0 ? $this->stock[mb_strtolower($item->medicine_name)] : null;
+            $release->items()->create(['prescription_item_id' => $item->id, 'medicine_id' => $medicine?->id, 'quantity_dispensed' => $quantity, 'released_as' => $releasedAs,
                 'remainder_outcome' => $outcome, 'quantity_closed' => $closed, 'outcome_note' => $note]);
+            if ($medicine) {
+                // A new allocation arrives when stock would run out, as monthly deliveries would.
+                if ($medicine->fresh('batches')->available() < $quantity * 100) {
+                    $this->receiveAt($medicine, $this->delivery[mb_strtolower($medicine->name)], $time->setTime(7, 0), $time->addMonths(18)->toDateString(), 'DOH allocation');
+                }
+                Inventory::release($medicine, $quantity * 100, $release, $this->users['pharmacist']);
+            }
         }
+        StockMovement::where('dispensing_id', $release->id)->update(['created_at' => $time, 'updated_at' => $time]);
         $rx->forceFill(['lock_version' => $rx->lock_version + 1])->save();
     }
 
-    private function labOrder(Visit $visit, array $tests, User $orderedBy, ?NurseAuthorization $authority, CarbonImmutable $time, string $reason, bool $completed): void
+    private function labOrder(Visit $visit, array $tests, User $orderedBy, CarbonImmutable $time, string $reason, bool $completed): void
     {
         $order = (string) Str::uuid();
         foreach ($tests as $i => $test) {
@@ -438,8 +517,9 @@ class PresentationDemoSeeder extends Seeder
             LaboratoryRecord::forceCreate([
                 'visit_id' => $visit->id, 'submission_token' => (string) Str::uuid(), 'test_name' => $test,
                 'availability_status' => $completed ? 'PERFORMED_RHU' : 'PENDING', 'notes' => null,
-                'request_reason' => $reason, 'order_reference' => $order, 'authorizing_doctor_id' => $this->users['doctor']->id,
-                'nurse_authorization_id' => $authority?->id,
+                'request_reason' => $reason, 'order_reference' => $order,
+                // Doctors name themselves as the authorizing doctor; nurse orders have none.
+                'authorizing_doctor_id' => $orderedBy->is($this->users['doctor']) ? $orderedBy->id : null,
                 'result_rows' => $completed ? $this->resultsFor($test, $visit->id) : null, 'specimen' => $completed ? $this->specimenFor($test) : null,
                 'completed_at' => $completed ? $done : null,
                 'created_by' => $orderedBy->id, 'updated_by' => $completed ? $this->users['medtech']->id : $orderedBy->id,

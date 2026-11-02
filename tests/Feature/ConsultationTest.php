@@ -79,7 +79,7 @@ class ConsultationTest extends TestCase
         $admin->assignRole('System Admin');
         $this->actingAs($admin)->put(route('eligibility.save', [$this->patient, $this->visit]), ['lock_version' => 0, 'philhealth_confirmed' => 1, 'remarks' => '<script>fictional</script>'])->assertSessionHasNoErrors();
         $this->actingAs($this->officer)->get($this->url())->assertOk()->assertSee('36.75 Celsius')->assertSee('With record')->assertSee('&lt;script&gt;fictional&lt;/script&gt;', false)->assertDontSee('<script>fictional</script>', false);
-        $this->get('/patients')->assertForbidden();
+        $this->getJson('/patients')->assertForbidden();
         $this->put(route('assessments.save', [$this->patient, $this->visit]), ['lock_version' => 1, 'temperature' => 37])->assertForbidden();
         $this->put(route('eligibility.save', [$this->patient, $this->visit]), ['lock_version' => 1, 'philhealth_confirmed' => 0])->assertForbidden();
         $this->post($this->url(), [])->assertStatus(405);
@@ -96,8 +96,8 @@ class ConsultationTest extends TestCase
         foreach (['System Admin', 'Information Staff', 'Nurse', 'MedTech', 'Pharmacist', 'Midwife'] as $role) {
             $user = User::factory()->create();
             $user->assignRole($role);
-            $this->actingAs($user)->get(route('consultations.index'))->assertForbidden();
-            $this->get($this->url())->assertForbidden();
+            $this->actingAs($user)->getJson(route('consultations.index'))->assertForbidden();
+            $this->getJson($this->url())->assertForbidden();
         }
         $this->actingAs($this->officer);
         $this->patient->delete();

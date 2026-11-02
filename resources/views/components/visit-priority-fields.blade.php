@@ -2,7 +2,7 @@
 @php
     $patient ??= $visit?->patient;
     $seniorDate = $patient?->birth_date?->copy()->addYears(60)->toDateString();
-    $date = $visit?->visit_date?->toDateString() ?? old('visit_date', now('Asia/Manila')->toDateString());
+    $date = $visit?->visit_date?->toDateString() ?? now('Asia/Manila')->toDateString();
     $senior = is_string($date) && $seniorDate && $date >= $seniorDate;
     $level = old('priority', $visit?->priority ?? 'REGULAR');
     $reason = old('priority_reason', $visit?->priority_reason);

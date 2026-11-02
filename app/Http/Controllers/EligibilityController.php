@@ -16,11 +16,15 @@ class EligibilityController extends Controller
     public function index(Request $request)
     {
         Gate::authorize('eligibility.view');
-        $data = $request->validate(['all' => ['sometimes', 'boolean'], 'date' => ListFilters::pastDate(), 'search' => ListFilters::search()]);
+        $data = $request->validate(['all' => ['sometimes', 'boolean'], 'date' => ListFilters::pastDate(), 'search' => ListFilters::search(), 'priority' => ListFilters::priority(), 'confirmation' => ['nullable', 'in:with,without,unchecked']]);
         $search = trim($data['search'] ?? '');
         $allDates = (bool) ($data['all'] ?? false);
         $date = $data['date'] ?? now('Asia/Manila')->toDateString();
-        $visits = Visit::with(['patient', 'service', 'eligibilityCheck'])->whereHas('patient')->when(! $allDates, fn ($query) => $query->whereDate('visit_date', $date))->searchPatientOrQueue($search)->priorityFirst()->scrollPaginate()->withQueryString();
+        $visits = Visit::with(['patient', 'service', 'eligibilityCheck'])->whereHas('patient')->when($data['priority'] ?? null, fn ($query, $priority) => $query->where('priority', $priority))
+            ->when(($data['confirmation'] ?? null) === 'with', fn ($query) => $query->whereHas('eligibilityCheck', fn ($check) => $check->where('philhealth_confirmed', true)))
+            ->when(($data['confirmation'] ?? null) === 'without', fn ($query) => $query->whereHas('eligibilityCheck', fn ($check) => $check->where('philhealth_confirmed', false)))
+            ->when(($data['confirmation'] ?? null) === 'unchecked', fn ($query) => $query->whereDoesntHave('eligibilityCheck', fn ($check) => $check->whereNotNull('philhealth_confirmed')))
+            ->when(! $allDates, fn ($query) => $query->whereDate('visit_date', $date))->searchPatientOrQueue($search)->priorityFirst()->scrollPaginate()->withQueryString();
 
         return view('eligibility.index', compact('allDates', 'search', 'visits', 'date'));
     }

@@ -15,7 +15,7 @@ test('scroll queues fetch ten, bound DOM size, retry, go backwards and preserve 
   const service = await page.getByLabel('Requested service (required)').locator('option').filter({ hasText: /^Consultation$/ }).getAttribute('value');
   const csrf = await page.locator('form[action$="/logout"] input[name="_token"]').inputValue();
   for (let index = 0; index < 42; index++) {
-    const response = await page.request.post(`${patientUrl}/visits`, { form: { _token: csrf, service_id: service, visit_date: '2026-01-15' } });
+    const response = await page.request.post(`${patientUrl}/visits`, { form: { _token: csrf, service_id: service } });
     expect(response.ok()).toBe(true);
   }
   await page.goto('/visits?all=1&search=Aster');

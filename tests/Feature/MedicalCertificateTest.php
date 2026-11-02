@@ -90,10 +90,10 @@ class MedicalCertificateTest extends TestCase
         foreach (['System Admin', 'Information Staff', 'Nurse', 'Pharmacist', 'MedTech', 'Midwife'] as $role) {
             $user = User::factory()->create();
             $user->assignRole($role);
-            $this->actingAs($user)->get(route('certificates.index', [$this->patient, $this->visit]))->assertForbidden();
+            $this->actingAs($user)->getJson(route('certificates.index', [$this->patient, $this->visit]))->assertForbidden();
             $this->post(route('certificates.store', [$this->patient, $this->visit]), $this->data())->assertForbidden();
-            $this->get(route('certificates.print', [$this->patient, $this->visit, $record]))->assertForbidden();
-            $this->get(route('certificates.pdf', [$this->patient, $this->visit, $record]))->assertForbidden();
+            $this->getJson(route('certificates.print', [$this->patient, $this->visit, $record]))->assertForbidden();
+            $this->getJson(route('certificates.pdf', [$this->patient, $this->visit, $record]))->assertForbidden();
         }
         $this->actingAs($this->doctor);
         $other = Patient::forceCreate(['created_by' => $this->doctor->id, 'duplicate_key' => (string) Str::uuid(), 'first_name' => 'Other', 'last_name' => 'Fictional']);

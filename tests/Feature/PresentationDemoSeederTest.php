@@ -6,8 +6,11 @@ use App\Models\AssessmentRequest;
 use App\Models\DispensingItem;
 use App\Models\LaboratoryRecord;
 use App\Models\MedicalCertificate;
+use App\Models\Medicine;
+use App\Models\MedicineBatch;
 use App\Models\Patient;
 use App\Models\Prescription;
+use App\Models\StockMovement;
 use App\Models\User;
 use App\Models\Visit;
 use Database\Seeders\PresentationDemoSeeder;
@@ -42,12 +45,23 @@ class PresentationDemoSeederTest extends TestCase
         $this->assertTrue(Prescription::whereIn('visit_id', $ids)->where('status', Prescription::DRAFT)->exists());
         $this->assertTrue(Prescription::whereIn('visit_id', $ids)->issued()->doesntHave('activeDispensings')->exists());
         $this->assertTrue(DispensingItem::whereNotNull('released_as')->where('remainder_outcome', 'BUY_OUTSIDE')->exists());
-        $this->assertTrue(LaboratoryRecord::whereIn('visit_id', $ids)->where('availability_status', 'PENDING')->whereNotNull('nurse_authorization_id')->exists());
+        $this->assertTrue(LaboratoryRecord::whereIn('visit_id', $ids)->where('availability_status', 'PENDING')->whereNull('authorizing_doctor_id')->where('created_by', User::where('email', 'nurse@rhu.test')->value('id'))->exists());
         $this->assertTrue(LaboratoryRecord::whereIn('visit_id', $ids)->where('availability_status', 'PERFORMED_RHU')->whereNotNull('result_rows')->exists());
         $this->assertTrue(MedicalCertificate::whereIn('visit_id', $ids)->exists());
         $this->assertGreaterThanOrEqual(3, Visit::whereDate('follow_up_on', $day)->count());
         $this->assertSame(0, Visit::whereDate('follow_up_on', '>=', $day)->whereNotNull('follow_up_notified_at')->count());
         $this->assertGreaterThan(150, Patient::count());
+
+        // Inventory states for the pharmacy demo.
+        $statuses = fn (string $name) => Medicine::with('batches')->where('name', $name)->sole()->statuses();
+        $this->assertContains('out', $statuses('Metformin'));
+        $this->assertContains('low', $statuses('Losartan'));
+        $this->assertContains('out', $statuses('Salbutamol'));
+        $this->assertContains('expiring', $statuses('Amoxicillin'));
+        $this->assertContains('expired', $statuses('Cetirizine'));
+        $this->assertGreaterThan(0, StockMovement::where('type', 'RELEASED')->count());
+        $this->assertSame(0, MedicineBatch::where('quantity_remaining', '<', 0)->count());
+        $this->assertSame(DispensingItem::where('quantity_dispensed', '>', 0)->count(), DispensingItem::where('quantity_dispensed', '>', 0)->whereNotNull('medicine_id')->count());
 
         // Running it again changes nothing.
         $visits = Visit::count();

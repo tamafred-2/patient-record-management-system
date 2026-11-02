@@ -109,7 +109,7 @@ class TreatmentRecordTest extends TestCase
         foreach (['System Admin', 'Information Staff', 'Nurse', 'MedTech', 'Pharmacist', 'Midwife'] as $role) {
             $user = User::factory()->create();
             $user->assignRole($role);
-            $this->actingAs($user)->get($this->url())->assertForbidden();
+            $this->actingAs($user)->getJson($this->url())->assertForbidden();
             $this->put($this->url(), $data)->assertForbidden();
         }
         $this->actingAs($this->officer);

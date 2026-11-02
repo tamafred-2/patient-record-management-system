@@ -11,9 +11,8 @@ test('today visits load ten rows per batch and scroll within the viewport', asyn
   await page.goto('/patients/1/visits/create');
   const token = await page.locator('form[action$="/visits"] input[name="_token"]').inputValue();
   const service = await page.locator('select[name="service_id"] option').filter({ hasText: 'Consultation' }).getAttribute('value');
-  const date = await page.locator('input[name="visit_date"]').inputValue();
   for (let i = 0; i < 11; i++) {
-    const response = await page.request.post('/patients/1/visits', { form: { _token: token, service_id: service, visit_date: date, queue_reference: `TEST-${i + 1}` } });
+    const response = await page.request.post('/patients/1/visits', { form: { _token: token, service_id: service, queue_reference: `TEST-${i + 1}` } });
     expect(response.ok()).toBeTruthy();
   }
   await page.goto('/dashboard');

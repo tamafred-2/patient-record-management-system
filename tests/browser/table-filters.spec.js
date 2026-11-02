@@ -23,23 +23,6 @@ test('account filters combine and reset without a stale cursor', async ({ page }
   await expect(page.locator('tbody tr')).not.toHaveCount(1);
 });
 
-test('nurse authorization filters and Manage use the existing table link style', async ({ page }) => {
-  const errors = [];
-  page.on('pageerror', error => errors.push(error.message));
-  await login(page, 'doctor');
-  await page.goto('/nurse-authorizations');
-  await expect(page.getByText('Manage nurses’ laboratory ordering access for patients they assessed.')).toBeVisible();
-  await page.getByRole('searchbox', { name: 'Search nurses, doctors or permitted tests', exact: true }).fill('nurse@rhu.test');
-  await page.getByRole('button', { name: 'Apply filters' }).click();
-  const manage = page.getByRole('link', { name: 'Manage Demo Nurse', exact: true });
-  await expect(manage).toHaveClass(/underline/);
-  await expect(manage).not.toHaveClass(/rounded-lg/);
-  await page.getByRole('searchbox', { name: 'Search nurses, doctors or permitted tests', exact: true }).fill('no matching nurse');
-  await page.getByRole('button', { name: 'Apply filters' }).click();
-  await expect(page.getByText('No nurses match these filters.')).toBeVisible();
-  expect(errors).toEqual([]);
-});
-
 test('small tables search independently by column and print all rows', async ({ page }) => {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));

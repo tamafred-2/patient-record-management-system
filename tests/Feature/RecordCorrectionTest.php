@@ -70,9 +70,8 @@ class RecordCorrectionTest extends TestCase
         $other = Visit::orderBy('id')->skip(1)->firstOrFail();
         $this->post(route('pharmacy.void', [$other->patient, $visit, $release]), $data)->assertNotFound();
         $this->post(route('pharmacy.void', [$other->patient, $other, $release]), $data)->assertNotFound();
+        // Pharmacy corrects its own records even after the visit is completed.
         $visit->forceFill(['status' => 'COMPLETED'])->save();
-        $this->post($url, $data)->assertSessionHasErrors('visit');
-        $visit->forceFill(['status' => 'OPEN'])->save();
         $this->post($url, $data)->assertSessionHasNoErrors();
         $this->assertNotNull($release->fresh()->voided_at);
         $this->assertSame($before, $release->fresh()->items->toArray());

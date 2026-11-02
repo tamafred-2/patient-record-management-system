@@ -6,3 +6,6 @@ import './date-filters';
 import './certificate-preview';
 import './validation-modal';
 import './notifications';
+
+import './clickable-rows';
+import './dashboard-layout';

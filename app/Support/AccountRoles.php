@@ -7,7 +7,7 @@ class AccountRoles
     public const ADDITIONAL = [
         'System Admin' => ['Information Staff'],
         'Doctor / Medical Officer' => ['Nurse'],
-        'Nurse' => [],
+        'Nurse' => ['Information Staff'],
         'Information Staff' => [],
         'MedTech' => [],
         'Pharmacist' => [],

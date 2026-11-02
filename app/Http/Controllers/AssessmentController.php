@@ -2,11 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\NurseAuthorization;
 use App\Models\Patient;
 use App\Models\Visit;
 use App\Models\VitalSign;
-use App\Support\FollowupAccess;
 use App\Support\ListFilters;
 use App\Support\VitalsAccess;
 use App\Support\WorkflowAlerts;
@@ -20,21 +18,19 @@ class AssessmentController extends Controller
     public function index(Request $request)
     {
         Gate::authorize('vitals.view');
-        $data = $request->validate(['authorized' => ['sometimes', 'boolean'], 'reassessment' => ['sometimes', 'boolean'], 'all' => ['sometimes', 'boolean'], 'date' => ListFilters::pastDate(), 'search' => ListFilters::search()]);
-        $authorizedOnly = (bool) ($data['authorized'] ?? false);
+        $data = $request->validate(['reassessment' => ['sometimes', 'boolean'], 'all' => ['sometimes', 'boolean'], 'date' => ListFilters::pastDate(), 'search' => ListFilters::search(), 'priority' => ListFilters::priority(), 'vitals' => ['nullable', 'in:pending,recorded']]);
         $reassessmentOnly = (bool) ($data['reassessment'] ?? false);
-        $allDates = $authorizedOnly || $reassessmentOnly || (bool) ($data['all'] ?? false);
+        $allDates = $reassessmentOnly || (bool) ($data['all'] ?? false);
         $date = $data['date'] ?? now('Asia/Manila')->toDateString();
         $search = trim($data['search'] ?? '');
-        $nurse = $request->user();
-        $standing = FollowupAccess::nurse($nurse) && (bool) NurseAuthorization::activeFor($nurse)?->usable();
         $visits = Visit::with(['patient', 'service', 'vitalSign', 'pendingAssessmentRequest'])->whereHas('patient')
-            ->withCount(['followupAuthorizations as authorized_followups_count' => fn ($query) => $query->availableTo($nurse)])
-            ->when($authorizedOnly, fn ($query) => $query->orderableBy($nurse, $standing))
             ->when($reassessmentOnly, fn ($query) => $query->where('status', Visit::OPEN)->has('pendingAssessmentRequest'))
+            ->when($data['priority'] ?? null, fn ($query, $priority) => $query->where('priority', $priority))
+            ->when(($data['vitals'] ?? null) === 'pending', fn ($query) => $query->doesntHave('vitalSign'))
+            ->when(($data['vitals'] ?? null) === 'recorded', fn ($query) => $query->has('vitalSign'))
             ->when(! $allDates, fn ($query) => $query->whereDate('visit_date', $date))->searchPatientOrQueue($search)->priorityFirst()->scrollPaginate()->withQueryString();
 
-        return view('assessments.index', compact('allDates', 'search', 'visits', 'date', 'reassessmentOnly', 'authorizedOnly', 'standing'));
+        return view('assessments.index', compact('allDates', 'search', 'visits', 'date', 'reassessmentOnly'));
     }
 
     public function edit(Request $request, Patient $patient, string $visit)

@@ -34,7 +34,6 @@
     .staff-sidebar { width: var(--sidebar-width, 288px); }
     .staff-content { padding-left: var(--sidebar-width, 288px); }
     .staff-content > main { width: 90%; max-width: none; padding-left: 0; padding-right: 0; }
-    .staff-content > .page-header > .page-header-inner { width: 90%; max-width: none; padding-left: 0; padding-right: 0; }
     .sidebar-collapsed .staff-sidebar { width: 5rem; }
     .sidebar-collapsed .staff-content { padding-left: 5rem; }
     .sidebar-collapsed .sidebar-label { display: none; }
@@ -110,3 +109,43 @@
 @media (prefers-reduced-motion: no-preference) {
     .queue-viewport:focus-visible { scroll-behavior: smooth; }
 }
+
+/* Keep the four follow-up columns inside the dashboard card, including scroll viewports. */
+#follow-ups table th, #follow-ups table td { white-space: normal; overflow-wrap: anywhere; }
+
+[data-clickable-row]:has(a[data-row-link]) { cursor: pointer; }
+[data-clickable-row]:has(a[data-row-link]):hover, [data-clickable-row]:focus-within { background-color: #ecfdf5; }
+[data-clickable-row]:focus-within { outline: 2px solid #047857; outline-offset: -2px; }
+
+/* Dashboard records wrap inside their cards rather than widening the page. */
+#today-visits table { width: 100%; table-layout: fixed; }
+#today-visits table th, #today-visits table td { white-space: normal; overflow-wrap: anywhere; }
+#today-visits td [data-visit-priority] {
+    display: block;
+    max-width: 100%;
+    padding: .125rem .375rem;
+    font-size: 10px;
+    line-height: 1.4;
+    letter-spacing: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#follow-ups .queue-viewport > table td { white-space: normal; }
+@media (min-width: 1280px) {
+    main:has([data-dashboard-panels]) { padding-top: 1rem; padding-bottom: 1rem; }
+    main:has([data-dashboard-panels]) [aria-labelledby="dashboard-summary-title"] > div { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; }
+    main:has([data-dashboard-panels]) [aria-labelledby="dashboard-summary-title"] article { padding: .75rem; }
+    main:has([data-dashboard-panels]) [aria-labelledby="dashboard-summary-title"] article > p { margin-top: .5rem; }
+    [data-dashboard-panels] { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; padding-top: 1rem; }
+    [data-dashboard-panels] > section { margin-top: 0; padding: 1rem; }
+    [data-dashboard-panels] > section > div:first-child { margin-bottom: .75rem; gap: .5rem; }
+    .dashboard-panels-fitted { height: var(--dashboard-panel-height); align-items: stretch; }
+    .dashboard-panels-fitted > section { display: flex; flex-direction: column; min-height: 0; }
+    .dashboard-panels-fitted .scroll-queue { display: flex; flex-direction: column; flex: 1; min-height: 0; margin: 0; }
+    .dashboard-panels-fitted .queue-controls { flex-shrink: 0; padding: .5rem; font-size: .75rem; }
+    .dashboard-panels-fitted [data-queue-viewport] { flex: 1; min-height: 0; height: 0 !important; }
+}
+
+#today-visits table th, #today-visits table td, #follow-ups table th, #follow-ups table td { padding: .5rem; font-size: .75rem; }
+#today-visits table th, #follow-ups table th { overflow-wrap: normal; }

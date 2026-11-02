@@ -44,7 +44,7 @@ class TableFilterTest extends TestCase
         $this->get(route('staff.index', ['search' => '%']))->assertOk()->assertViewHas('users', fn ($users) => $users->isEmpty());
         $this->get(route('staff.index', ['status' => 'invalid']))->assertSessionHasErrors('status');
         $this->login('nurse');
-        $this->get($url)->assertForbidden();
+        $this->getJson($url)->assertForbidden();
     }
 
     public function test_service_filters_combine_text_and_status(): void
@@ -54,20 +54,6 @@ class TableFilterTest extends TestCase
         $this->get(route('services.index', ['search' => 'filter', 'status' => 'inactive']))->assertOk()
             ->assertViewHas('services', fn ($services) => $services->count() === 1 && $services->first()->code === 'FILTER');
         $this->get(route('services.index', ['search' => 'filter', 'status' => 'active']))->assertViewHas('services', fn ($services) => $services->isEmpty());
-    }
-
-    public function test_nurse_filters_match_authorization_state_and_tests_without_broadening_access(): void
-    {
-        $this->login('doctor');
-        $nurse = User::where('email', 'nurse@rhu.test')->firstOrFail();
-        $this->put(route('nurse-authorizations.store', $nurse), ['test_scope' => 'SELECTED', 'allowed_tests' => ['Urinalysis']])->assertSessionHasNoErrors();
-        $this->get(route('nurse-authorizations.index', ['search' => 'urinalysis', 'ordering' => 'on']))->assertOk()
-            ->assertViewHas('nurses', fn ($nurses) => $nurses->contains('id', $nurse->id));
-        $this->get(route('nurse-authorizations.index', ['search' => $nurse->email, 'ordering' => 'off']))->assertOk()
-            ->assertViewHas('nurses', fn ($nurses) => $nurses->isEmpty());
-        $this->get(route('nurse-authorizations.index', ['ordering' => 'invalid']))->assertSessionHasErrors('ordering');
-        $this->login('nurse');
-        $this->get(route('nurse-authorizations.index', ['search' => 'urinalysis']))->assertForbidden();
     }
 
     public function test_patient_visit_filters_stay_scoped_to_the_patient(): void

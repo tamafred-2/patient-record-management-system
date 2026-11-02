@@ -6,6 +6,7 @@ use App\Models\Dispensing;
 use App\Models\DispositionRecord;
 use App\Models\EligibilityCheck;
 use App\Models\LaboratoryRecord;
+use App\Models\Medicine;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\Service;
@@ -13,6 +14,7 @@ use App\Models\TreatmentRecord;
 use App\Models\User;
 use App\Models\Visit;
 use App\Models\VitalSign;
+use App\Support\Inventory;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -104,6 +106,12 @@ class WorkflowDemoSeeder extends Seeder
                     $record->save();
                 }
                 activity('demo')->performedOn($visit)->withProperties(['source' => 'WorkflowDemoSeeder'])->log('demo.workflow_seeded');
+            }
+            // Fictional stock for the demonstration medicine, so releases can be recorded against the inventory.
+            $key = Medicine::lookupKey('Fictional demonstration medicine', null, 'Tablet');
+            if (! Medicine::where('lookup_key', $key)->exists()) {
+                $medicine = Medicine::forceCreate(['name' => 'Fictional demonstration medicine', 'form' => 'Tablet', 'lookup_key' => $key, 'reorder_level' => 20, 'created_by' => $pharmacist->id]);
+                Inventory::receive($medicine, 20000, ['received_on' => now('Asia/Manila')->toDateString(), 'expiry_date' => now('Asia/Manila')->addYear()->toDateString(), 'batch_number' => 'DEMO-LOT-1', 'supplier' => 'Fictional supplier'], $pharmacist);
             }
         });
     }

@@ -1,14 +1,11 @@
 <x-layout title="Initial assessment">
     <h1 class="text-3xl font-semibold">Initial assessment</h1>
     <p class="mt-2 text-slate-600">Record vital signs and a detailed assessment summary for the doctor.</p>
-    @if($authorizedOnly)
-        <p class="mt-4 text-sm text-slate-600">Showing open visits you are authorized to order tests for, across all dates. <a class="text-emerald-800 underline" href="{{ route('assessments.index') }}">Back to all assessments</a></p>
-        <form method="GET" class="my-6 flex items-end gap-3"><input type="hidden" name="authorized" value="1"><x-input name="search" label="Patient name or queue number" :value="$search" maxlength="100" /><x-button>Search authorized visits</x-button></form>
-    @elseif($reassessmentOnly)
+    @if($reassessmentOnly)
         <p class="mt-4 text-sm text-slate-600">Showing pending requests across all visit dates. <a class="text-emerald-800 underline" href="{{ route('assessments.index') }}">Back to all assessments</a></p>
         <form method="GET" class="my-6 flex items-end gap-3"><input type="hidden" name="reassessment" value="1"><x-input name="search" label="Patient name or queue number" :value="$search" maxlength="100" /><x-button>Search pending requests</x-button></form>
     @else
-        <x-visit-filters :search="$search" :date="$date" :all-dates="$allDates" />
+        <x-visit-filters :search="$search" :date="$date" :all-dates="$allDates" :filters="App\Support\ListFilters::priorityFilter() + ['vitals' => ['label' => 'Vital signs', 'options' => ['pending' => 'Not yet recorded', 'recorded' => 'Recorded']]]" />
     @endif
     <p class="mt-3 text-sm font-semibold text-emerald-800">{{ $allDates ? 'All dates' : $date }} ? {{ $visits->total() }} visits</p>
     @if($errors->any())<x-alert type="error">{{ $errors->first() }}</x-alert>@endif
@@ -23,7 +20,7 @@
                         <td class="p-3">{{ $visit->visit_number }}<p class="text-slate-500">{{ $visit->service->name }}</p></td>
                         <td class="p-3">{{ $visit->queue_reference ?? 'Not recorded' }}<x-visit-priority :visit="$visit" class="mt-1 block w-fit" /></td>
                         <td class="p-3">{{ $visit->vitalSign ? 'Recorded' : 'Pending' }}@if($visit->pendingAssessmentRequest)<span class="mt-1 block font-semibold text-amber-800">Reassessment requested</span>@endif</td>
-                        <td class="p-3"><a class="font-semibold text-emerald-800 underline" href="{{ route('assessments.edit', [$visit->patient, $visit]) }}">Open assessment</a>@if($visit->status === 'OPEN' && ($visit->authorized_followups_count || ($standing && in_array(auth()->id(), [$visit->vitalSign?->recorded_by, $visit->vitalSign?->updated_by], true))))<a class="mt-2 block font-semibold text-emerald-800 underline" href="{{ route('followups.show', [$visit->patient, $visit]) }}">Order follow-up tests</a>@endif</td>
+                        <td class="p-3"><a class="font-semibold text-emerald-800 underline" href="{{ route('assessments.edit', [$visit->patient, $visit]) }}">Open assessment</a>@if($visit->isOpen() && $visit->vitalSign && App\Support\FollowupAccess::nurse(auth()->user()))<a class="mt-2 block font-semibold text-emerald-800 underline" href="{{ route('followups.show', [$visit->patient, $visit]) }}">Order lab tests</a>@endif</td>
                     </tr>
                 @endforeach
             </tbody>

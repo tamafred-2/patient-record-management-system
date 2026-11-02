@@ -4,7 +4,7 @@
     <h1 class="mt-5 text-3xl font-semibold">Vaccination record</h1>
     <section class="my-6 rounded-xl border border-slate-200 bg-white p-6">
         <h2 class="text-xl font-semibold">{{ $patient->full_name }}</h2>
-        <p class="mt-2">{{ $patient->patient_number }} &middot; Birth date: {{ $patient->birth_date?->format('M j, Y') ?? 'Not recorded' }}</p>
+        <p class="mt-2">{{ $patient->patient_number }} &middot; Birth date: {{ $patient->birth_date?->format('M j, Y') ?? 'Not recorded' }} @can('history.view') &middot; <a href="{{ route('history.show', $patient) }}" class="font-semibold text-emerald-800 underline">Patient file</a>@endcan</p>
         <p class="mt-2 text-sm text-slate-600">{{ $visit->visit_number }} &middot; {{ $visit->visit_date->format('M j, Y') }} &middot; Queue: {{ $visit->queue_reference ?? 'Not recorded' }} &middot; {{ $visit->status }}</p>
     </section>
     <x-midwife-vitals :patient="$patient" :visit="$visit" />

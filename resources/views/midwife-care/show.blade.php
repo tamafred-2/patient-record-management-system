@@ -5,7 +5,7 @@
     <p class="mt-2 text-sm text-slate-500">Basic service record for RHU review. This is not an official clinical form.</p>
     <section class="my-6 rounded-xl border border-slate-200 bg-white p-6">
         <h2 class="text-xl font-semibold">{{ $patient->full_name }}</h2>
-        <p class="mt-2">{{ $patient->patient_number }} &middot; Birth date: {{ $patient->birth_date?->format('M j, Y') ?? 'Not recorded' }}</p>
+        <p class="mt-2">{{ $patient->patient_number }} &middot; Birth date: {{ $patient->birth_date?->format('M j, Y') ?? 'Not recorded' }} @can('history.view') &middot; <a href="{{ route('history.show', $patient) }}" class="font-semibold text-emerald-800 underline">Patient file</a>@endcan</p>
         <p class="mt-2 text-sm text-slate-600">{{ $visit->visit_number }} &middot; {{ $visit->visit_date->format('M j, Y') }} &middot; Queue: {{ $visit->queue_reference ?? 'Not recorded' }} &middot; {{ $visit->status }}</p>
         @if($vaccinationVisit)<a href="{{ route('vaccinations.show', [$patient, $vaccinationVisit]) }}" class="mt-3 inline-block font-semibold text-emerald-800 underline">View patient vaccination history</a>@endif
     </section>

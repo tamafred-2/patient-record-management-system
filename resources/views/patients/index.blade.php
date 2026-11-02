@@ -10,12 +10,12 @@
     <x-scroll-queue :paginator="$patients" id="patients" label="Patients, scroll to load more">
 <table class="w-full text-left text-sm">
             <caption class="sr-only">Patient search results</caption>
-            <thead class="bg-slate-100"><tr><th scope="col" class="p-4">Patient number</th><th scope="col" class="p-4">Name</th><th scope="col" class="p-4">Date of birth</th><th scope="col" class="p-4">Barangay</th></tr></thead>
+            <thead class="bg-slate-100"><tr><th scope="col" class="p-4">Patient number</th><th scope="col" class="p-4">Name</th><th scope="col" class="p-4">Date of birth</th></tr></thead>
             <tbody>
                 @forelse($patients as $patient)
-                    <tr class="border-t border-slate-100"><td class="p-4"><a href="{{ route('patients.show', $patient) }}" class="font-semibold text-emerald-800 underline">{{ $patient->patient_number }}</a></td><td class="p-4">{{ $patient->full_name }}</td><td class="p-4">{{ $patient->birth_date?->format('M j, Y') ?? 'Not recorded' }}</td><td class="p-4">{{ $patient->barangay ?? 'Not recorded' }}</td></tr>
+                    <tr class="border-t border-slate-100"><td class="p-4"><a href="{{ route('patients.show', $patient) }}" class="font-semibold text-emerald-800 underline">{{ $patient->patient_number }}</a></td><td class="p-4">{{ $patient->full_name }}</td><td class="p-4">{{ $patient->birth_date?->format('M j, Y') ?? 'Not recorded' }}</td></tr>
                 @empty
-                    <tr><td colspan="4" class="p-8 text-center text-slate-600">No matching patients. Check the spelling, search by patient number or reset the filters before registering.</td></tr>
+                    <tr><td colspan="3" class="p-8 text-center text-slate-600">No matching patients. Check the spelling, search by patient number or reset the filters before registering.</td></tr>
                 @endforelse
             </tbody>
         </table>

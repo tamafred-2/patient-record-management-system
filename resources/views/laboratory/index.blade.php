@@ -15,7 +15,7 @@
         </div>
         <x-button aria-label="Apply record filter">Apply</x-button>
     </form>
-    <x-visit-filters :search="$search" :date="$date" :all-dates="$allDates" :record="$record" :inline="true" />
+    <x-visit-filters :search="$search" :date="$date" :all-dates="$allDates" :record="$record" :inline="true" :filters="App\Support\ListFilters::priorityFilter() + ['lab_status' => ['label' => 'Lab status', 'options' => App\Models\LaboratoryRecord::STATUSES]]" />
     </div>
     <p class="mt-3 text-sm font-semibold text-emerald-800">{{ $allDates ? 'All dates' : $date }} &middot; {{ $record === 'with_records' ? 'With lab records' : 'All laboratory visits' }} &middot; {{ $visits->total() }} visits</p>
     @if($errors->any())<x-alert type="error">{{ $errors->first() }}</x-alert>@endif

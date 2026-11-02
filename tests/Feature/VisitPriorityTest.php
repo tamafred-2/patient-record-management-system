@@ -100,9 +100,11 @@ class VisitPriorityTest extends TestCase
         $this->register([])->assertSessionHasNoErrors();
         $this->assertSame('REGULAR', Visit::latest('id')->firstOrFail()->priority);
         $this->patient->update(['birth_date' => '1966-10-25']);
+        $this->travelTo(CarbonImmutable::parse('2026-10-24 10:00:00', 'Asia/Manila'));
         $this->post(route('patients.visits.store', $this->patient), [
             'service_id' => Service::first()->id, 'visit_date' => '2026-10-24',
         ])->assertSessionHasNoErrors();
+        $this->travelTo(CarbonImmutable::parse('2026-10-25 10:00:00', 'Asia/Manila'));
         $historical = Visit::latest('id')->firstOrFail();
         $this->assertSame('REGULAR', $historical->priority);
         $this->get(route('visits.stub', [$this->patient, $historical]))->assertOk()->assertSee('Regular')->assertDontSee('Priority care');
@@ -188,7 +190,7 @@ class VisitPriorityTest extends TestCase
         $nurse = $this->user('Nurse');
         $this->actingAs($nurse)->get(route('assessments.edit', [$this->patient, $visit]))->assertOk()
             ->assertSee('Change visit priority')->assertDontSee('id="visit-priority-title"', false);
-        $this->actingAs($this->user('Pharmacist'))->get(route('patients.visits.show', [$this->patient, $visit]))->assertForbidden();
+        $this->actingAs($this->user('Pharmacist'))->getJson(route('patients.visits.show', [$this->patient, $visit]))->assertForbidden();
         $this->actingAs($this->staff)->get(route('patients.visits.show', [$this->patient, $visit]))->assertSee('id="visit-priority-title"', false);
     }
 }

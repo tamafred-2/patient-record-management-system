@@ -1,7 +1,7 @@
 <x-layout title="Laboratory services">
     <x-back-link :href="route('laboratory.index',['date'=>$visit->visit_date->toDateString()])">Back to laboratory</x-back-link>
     <h1 class="mt-5 text-3xl font-semibold">Laboratory services</h1>
-    <p class="mt-3 font-medium">{{ $patient->full_name }} &middot; {{ $patient->patient_number }}</p>
+    <p class="mt-3 font-medium">{{ $patient->full_name }} &middot; {{ $patient->patient_number }} @can('history.view') &middot; <a href="{{ route('history.show', $patient) }}" class="font-semibold text-emerald-800 underline">Patient file</a>@endcan</p>
     <p class="mt-1 text-sm text-slate-600">{{ $visit->visit_number }} &middot; {{ $visit->visit_date->format('M j, Y') }} &middot; {{ $visit->service->name }} &middot; Queue: {{ $visit->queue_reference ?? 'Not recorded' }}</p>
     <section class="my-6 space-y-4">
         <x-scroll-queue :paginator="$records" id="records" kind="cards" label="Record history, scroll to load more"><div data-queue-items>@forelse($records as $entry)

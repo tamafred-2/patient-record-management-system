@@ -82,6 +82,7 @@ test('doctor ITR and dynamic prescription rows', async ({ page }) => {
   await page.getByLabel('Medicine name', { exact: true }).fill('Fictional browser medicine');
   await page.getByLabel('Dosage', { exact: true }).fill('Demonstration only');
   await page.getByLabel('Frequency', { exact: true }).fill('Demonstration only');
+  await page.getByLabel('Duration', { exact: true }).fill('5 days');
   await page.getByLabel('Quantity prescribed', { exact: true }).fill('2');
   await page.getByRole('button', { name: 'Add medicine', exact: true }).click();
   await expect(page.getByLabel('Medicine name', { exact: true })).toHaveCount(2);

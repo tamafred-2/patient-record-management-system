@@ -14,6 +14,15 @@ class DispensingQuantities
         return (int) $whole * 100 + (int) str_pad($fraction, 2, '0');
     }
 
+    /** For people: "200" for whole units, "1.25" only for older records that really have a fraction. */
+    public static function display(int|string|null $value): string
+    {
+        $hundredths = is_int($value) ? $value : self::hundredths(ltrim((string) ($value ?? '0'), '-'));
+        $text = $hundredths % 100 === 0 ? (string) intdiv($hundredths, 100) : self::format($hundredths);
+
+        return (is_string($value) && str_starts_with($value, '-') ? '-' : '').$text;
+    }
+
     public static function format(int $value): string
     {
         return intdiv($value, 100).'.'.str_pad((string) ($value % 100), 2, '0', STR_PAD_LEFT);

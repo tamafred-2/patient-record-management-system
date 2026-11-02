@@ -96,8 +96,8 @@ class AssessmentTest extends TestCase
         foreach (['System Admin', 'Information Staff', 'Doctor / Medical Officer', 'MedTech', 'Pharmacist', 'Midwife'] as $role) {
             $user = User::factory()->create();
             $user->assignRole($role);
-            $this->actingAs($user)->get(route('assessments.index'))->assertForbidden();
-            $this->get($this->url())->assertForbidden();
+            $this->actingAs($user)->getJson(route('assessments.index'))->assertForbidden();
+            $this->getJson($this->url())->assertForbidden();
             $this->put($this->url(), ['assessment_summary' => 'Fictional nurse observations.', 'lock_version' => 0, 'pulse_rate' => 70])->assertForbidden();
         }
         $this->assertDatabaseCount('vital_signs', 0);
@@ -106,7 +106,7 @@ class AssessmentTest extends TestCase
     public function test_date_filter_and_nurse_registry_boundary(): void
     {
         $this->get(route('assessments.index', ['date' => '2000-01-01']))->assertOk()->assertDontSee('Fictional Assessment');
-        $this->get('/patients')->assertForbidden();
-        $this->get('/services')->assertForbidden();
+        $this->getJson('/patients')->assertForbidden();
+        $this->getJson('/services')->assertForbidden();
     }
 }

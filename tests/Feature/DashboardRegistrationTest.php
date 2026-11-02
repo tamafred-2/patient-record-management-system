@@ -88,9 +88,9 @@ class DashboardRegistrationTest extends TestCase
         foreach (['TODAY-01', 'TODAY-02', 'OLDER-01'] as $queue) {
             $this->post(route('patients.visits.store', $patient), [
                 'service_id' => Service::first()->id, 'queue_reference' => $queue,
-                'visit_date' => now('Asia/Manila')->subDays($queue === 'OLDER-01' ? 1 : 0)->toDateString(),
+                'visit_date' => now('Asia/Manila')->toDateString(),
             ])->assertRedirect();
-            $patient->visits()->latest('id')->firstOrFail()->forceFill(['queue_reference' => $queue])->save();
+            $patient->visits()->latest('id')->firstOrFail()->forceFill(['queue_reference' => $queue, 'visit_date' => now('Asia/Manila')->subDays($queue === 'OLDER-01' ? 1 : 0)->toDateString()])->save();
         }
         $this->get('/dashboard')->assertDontSee('Find patient — all registered patients')->assertDontSee('Search patients');
         $result = $this->get('/dashboard?search=TODAY-01')->assertOk();
@@ -126,9 +126,9 @@ class DashboardRegistrationTest extends TestCase
             $this->assertNotNull($response->viewData($list));
             if ($role !== 'System Admin') {
                 $response->assertViewHas('todayVisits', null);
-                $this->get('/visits?all=1')->assertForbidden();
+                $this->getJson('/visits?all=1')->assertForbidden();
             }
-            $this->get('/patients?search=fictional')->assertForbidden();
+            $this->getJson('/patients?search=fictional')->assertForbidden();
         }
         $this->assertDatabaseCount('visits', 0);
     }

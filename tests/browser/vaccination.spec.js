@@ -39,7 +39,7 @@ test('midwife records a vaccine and staff completes the visit', async ({ browser
 
     page = await signIn('midwife');
     await expect(page.getByRole('heading', { name: "Today's vaccination visits", exact: true })).toBeVisible();
-    await page.getByRole('link', { name: 'Open vaccination record', exact: true }).click();
+    await page.locator(`a[data-row-link][href$="/vaccinations/${scope}"]`).click();
     await page.getByLabel('Vaccine name (required)', { exact: true }).fill('Fictional vaccine only');
     await page.getByLabel('Dose as documented (required)', { exact: true }).fill('Fictional dose only');
     await page.getByLabel('Batch / lot number (optional)', { exact: true }).fill('FICTIONAL-BATCH');

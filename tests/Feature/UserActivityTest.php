@@ -52,6 +52,6 @@ class UserActivityTest extends TestCase
         $this->assertFalse($nurse->recently_active);
         $this->actingAs($admin)->get('/staff')->assertOk()->assertSee('Recently active')->assertSee('Last active')->assertDontSee('Last sign-in')->assertSee('Offline')->assertSee('Deactivated');
         $nurse->forceFill(['is_active' => true])->save();
-        $this->actingAs($nurse)->get('/staff')->assertForbidden();
+        $this->actingAs($nurse)->getJson('/staff')->assertForbidden();
     }
 }

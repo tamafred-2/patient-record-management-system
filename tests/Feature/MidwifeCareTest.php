@@ -60,10 +60,10 @@ class MidwifeCareTest extends TestCase
         $this->get($this->url())->assertSee('Fictional care purpose')->assertSee('&lt;script&gt;fictional&lt;/script&gt;', false)->assertDontSee('<script>fictional</script>', false);
         $this->assertSame(2, $record->fresh()->lock_version);
         $this->assertSame(['visit_id', 'version'], array_keys(Activity::where('description', 'midwife-care.updated')->firstOrFail()->properties->all()));
-        $this->get('/patients')->assertForbidden();
-        $this->get('/consultations')->assertForbidden();
-        $this->get('/pharmacy')->assertForbidden();
-        $this->get(route('visits.completion', [$this->visit->patient, $this->visit]))->assertForbidden();
+        $this->getJson('/patients')->assertForbidden();
+        $this->getJson('/consultations')->assertForbidden();
+        $this->getJson('/pharmacy')->assertForbidden();
+        $this->getJson(route('visits.completion', [$this->visit->patient, $this->visit]))->assertForbidden();
     }
 
     public function test_permissions_parent_scoping_closed_archived_and_non_care_visits(): void
@@ -79,7 +79,7 @@ class MidwifeCareTest extends TestCase
         $this->get($this->url())->assertOk()->assertSee('read-only');
         foreach (['admin', 'doctor', 'information', 'nurse', 'pharmacist', 'medtech'] as $role) {
             $this->actingAs(User::where('email', $role.'@rhu.test')->firstOrFail());
-            $this->get('/midwife-care')->assertForbidden();
+            $this->getJson('/midwife-care')->assertForbidden();
             $this->post($this->url(), $this->data())->assertForbidden();
             $this->get('/dashboard')->assertDontSee('Open care record');
         }

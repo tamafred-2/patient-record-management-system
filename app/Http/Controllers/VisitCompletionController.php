@@ -49,9 +49,6 @@ class VisitCompletionController extends Controller
             if ($review['blocked']) {
                 throw ValidationException::withMessages(['visit' => 'Resolve pending reassessment requests and laboratory services, and issue prescription drafts before completing.']);
             }
-            if ($review['unreleased'] && trim($data['completion_remarks'] ?? '') === '') {
-                throw ValidationException::withMessages(['completion_remarks' => 'Explain why the visit is ending with unreleased medicines, after checking with Pharmacy.']);
-            }
             $visit->status = Visit::COMPLETED;
             $visit->completed_at = now();
             $visit->completed_by = $request->user()->id;
@@ -116,6 +113,6 @@ class VisitCompletionController extends Controller
 
         return ['midwifeCareCount' => $visit->midwifeCareRecords->count(), 'vaccinationCount' => $visit->vaccinationRecords->count(), 'version' => $version, 'draft' => $draft, 'unreleased' => $unreleased,
             'pendingLabs' => $pendingLabs, 'pendingAssessments' => $pendingAssessments, 'blocked' => $draft || $pendingLabs > 0 || $pendingAssessments > 0,
-            'pharmacy' => ! $prescription ? 'No prescription recorded' : ($draft ? 'Draft: not yet sent to Pharmacy' : ($unreleased ? 'Issued: medicines remain unreleased' : ($notReleasedHere ? 'Issued: pharmacy complete; some medicines to buy outside or declined' : 'Issued: all prescribed quantities released')))];
+            'pharmacy' => ! $prescription ? 'No prescription recorded' : ($draft ? 'Draft: not yet sent to Pharmacy' : ($unreleased ? 'Issued: Pharmacy can release the remaining medicines after this visit is completed' : ($notReleasedHere ? 'Issued: pharmacy complete; some medicines to buy outside or declined' : 'Issued: all prescribed quantities released')))];
     }
 }

@@ -71,8 +71,8 @@ class EligibilityTest extends TestCase
         $this->assertSame(['patient_id', 'visit_id', 'version'], array_keys($audit->properties->all()));
         $this->assertDatabaseCount('eligibility_checks', 1);
         $this->assertSame('OPEN', $this->visit->fresh()->status);
-        $this->get('/patients')->assertForbidden();
-        $this->get('/assessments')->assertForbidden();
+        $this->getJson('/patients')->assertForbidden();
+        $this->getJson('/assessments')->assertForbidden();
     }
 
     public function test_stale_create_and_update_are_rejected(): void
@@ -131,8 +131,8 @@ class EligibilityTest extends TestCase
         foreach (['Information Staff', 'Doctor / Medical Officer', 'Nurse', 'MedTech', 'Pharmacist', 'Midwife'] as $role) {
             $user = User::factory()->create();
             $user->assignRole($role);
-            $this->actingAs($user)->get(route('eligibility.index'))->assertForbidden();
-            $this->get($this->url())->assertForbidden();
+            $this->actingAs($user)->getJson(route('eligibility.index'))->assertForbidden();
+            $this->getJson($this->url())->assertForbidden();
             $this->put($this->url(), $data)->assertForbidden();
         }
         $this->assertDatabaseCount('eligibility_checks', 0);

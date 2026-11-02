@@ -20,6 +20,11 @@ class Dispensing extends Model
         return $this->hasMany(DispensingItem::class);
     }
 
+    public function prescription(): BelongsTo
+    {
+        return $this->belongsTo(Prescription::class);
+    }
+
     public function pharmacist(): BelongsTo
     {
         return $this->belongsTo(User::class, 'pharmacist_id');

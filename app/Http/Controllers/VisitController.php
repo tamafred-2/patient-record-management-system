@@ -28,6 +28,8 @@ class VisitController extends Controller
             'all' => ['sometimes', 'boolean'],
             'from' => ListFilters::pastDate(),
             'to' => ListFilters::pastDate(),
+            'priority' => ListFilters::priority(),
+            'status' => ['nullable', 'in:'.Visit::OPEN.','.Visit::COMPLETED],
         ]);
         $search = trim($input['search'] ?? '');
         $allDates = (bool) ($input['all'] ?? false);
@@ -38,6 +40,8 @@ class VisitController extends Controller
         }
         $visits = Visit::with(['patient', 'service'])->whereHas('patient')
             ->when(! $allDates, fn ($query) => $query->whereDate('visit_date', '>=', $from)->whereDate('visit_date', '<=', $to))
+            ->when($input['priority'] ?? null, fn ($query, $priority) => $query->where('priority', $priority))
+            ->when($input['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->searchPatientOrQueue($search)->orderByDesc('visit_date')->priorityFirst()->scrollPaginate()->withQueryString();
 
         return view('visits.index', compact('visits', 'today', 'from', 'to', 'search', 'allDates'));
@@ -71,7 +75,11 @@ class VisitController extends Controller
     public function store(Request $request, Patient $patient)
     {
         Gate::authorize('create', [Visit::class, $patient]);
-        $date = $request->validate(['visit_date' => ['required', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()]])['visit_date'];
+        $date = now('Asia/Manila')->toDateString();
+        $request->mergeIfMissing(['visit_date' => $date]);
+        $request->validate(['visit_date' => ['required', 'date_format:Y-m-d', Rule::in([$date])]], [
+            'visit_date.in' => 'New visits must use the current date. Reload Start visit to continue.',
+        ]);
         $senior = $patient->isSeniorOn($date);
         $request->mergeIfMissing(['priority' => $senior ? 'PRIORITY' : 'REGULAR']);
         if ($senior && $request->input('priority') === 'PRIORITY' && ! $request->filled('priority_reason')) {
@@ -79,7 +87,7 @@ class VisitController extends Controller
         }
         $data = $request->validate([
             'service_id' => ['required', 'integer', Rule::exists('services', 'id')->where('is_active', true)->whereNull('deleted_at')],
-            'visit_date' => ['required', 'date_format:Y-m-d', 'before_or_equal:'.now('Asia/Manila')->toDateString()],
+            'visit_date' => ['required', 'date_format:Y-m-d', Rule::in([$date])],
             'queue_token' => ['nullable', 'uuid'],
             'patient_id' => ['prohibited'], 'visit_number' => ['prohibited'],
             'created_by' => ['prohibited'], 'status' => ['prohibited'], 'completed_at' => ['prohibited'], 'completed_by' => ['prohibited'], 'completion_remarks' => ['prohibited'],

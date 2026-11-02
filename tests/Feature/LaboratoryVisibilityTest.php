@@ -69,6 +69,6 @@ class LaboratoryVisibilityTest extends TestCase
         $this->get('/laboratory?all=1&record=with_records&search=VISIBILITY')->assertOk()->assertSee($consult->visit_number)->assertDontSee($direct->visit_number);
         $this->get(route('laboratory.edit', [$patient, $consult, $record]))->assertOk();
         $this->get(route('laboratory.edit', [$patient, $direct, $record]))->assertNotFound();
-        $this->actingAs($nurse)->get('/laboratory?all=1')->assertForbidden();
+        $this->actingAs($nurse)->getJson('/laboratory?all=1')->assertForbidden();
     }
 }

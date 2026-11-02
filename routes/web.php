@@ -13,12 +13,12 @@ use App\Http\Controllers\EligibilityController;
 use App\Http\Controllers\FollowupController;
 use App\Http\Controllers\FollowUpScheduleController;
 use App\Http\Controllers\HistoryController;
+use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\LaboratoryController;
 use App\Http\Controllers\MedicalCertificateController;
 use App\Http\Controllers\MidwifeCareController;
 use App\Http\Controllers\MidwifeReportController;
 use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\NurseAuthorizationController;
 use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PrescriptionController;
@@ -46,12 +46,6 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::get('/followups/{patient}/visits/{visit}', [FollowupController::class, 'show'])->name('followups.show');
-    Route::get('/nurse-authorizations', [NurseAuthorizationController::class, 'index'])->name('nurse-authorizations.index');
-    Route::get('/nurse-authorizations/{nurse}', [NurseAuthorizationController::class, 'show'])->name('nurse-authorizations.show');
-    Route::put('/nurse-authorizations/{nurse}', [NurseAuthorizationController::class, 'store'])->name('nurse-authorizations.store');
-    Route::post('/nurse-authorizations/{nurse}/visit-grants/{grant}/withdraw', [NurseAuthorizationController::class, 'withdrawVisitGrant'])->name('nurse-authorizations.withdraw-visit-grant');
-    Route::delete('/nurse-authorizations/{nurse}', [NurseAuthorizationController::class, 'destroy'])->name('nurse-authorizations.destroy');
-    Route::post('/followups/{patient}/visits/{visit}/authorizations/{authorization}/revoke', [FollowupController::class, 'revoke'])->name('followups.revoke');
     Route::post('/followups/{patient}/visits/{visit}/request', [FollowupController::class, 'requestTest'])->name('followups.request');
     Route::get('/followups/{patient}/visits/{visit}/orders/{order}/slip', [FollowupController::class, 'slip'])->whereUuid('order')->name('followups.slip');
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
@@ -97,6 +91,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/supporting/{patient}/visits/{visit}/records/{record}/print', [PrintController::class, 'referral'])->name('prints.referral');
     Route::get('/laboratory/{patient}/visits/{visit}/records/{record}/print', [PrintController::class, 'laboratoryResult'])->name('prints.laboratory-result');
     Route::put('/laboratory/{patient}/visits/{visit}/records/{record}', [LaboratoryController::class, 'save'])->name('laboratory.update');
+    Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
+    Route::post('/inventory', [InventoryController::class, 'storeMedicine'])->name('inventory.store');
+    Route::get('/inventory/{medicine}', [InventoryController::class, 'show'])->name('inventory.show');
+    Route::put('/inventory/{medicine}', [InventoryController::class, 'updateMedicine'])->name('inventory.update');
+    Route::post('/inventory/{medicine}/batches', [InventoryController::class, 'receive'])->name('inventory.receive');
+    Route::post('/inventory/{medicine}/adjustments', [InventoryController::class, 'adjust'])->name('inventory.adjust');
     Route::get('/pharmacy', [DispensingController::class, 'index'])->name('pharmacy.index');
     Route::get('/pharmacy/{patient}/visits/{visit}', [DispensingController::class, 'show'])->name('pharmacy.show');
     Route::post('/pharmacy/{patient}/visits/{visit}', [DispensingController::class, 'store'])->name('pharmacy.store');

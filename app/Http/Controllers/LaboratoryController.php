@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\LaboratoryRecord;
 use App\Models\Patient;
-use App\Models\User;
 use App\Models\Visit;
 use App\Support\ListFilters;
 use App\Support\WorkflowAlerts;
@@ -19,12 +18,12 @@ class LaboratoryController extends Controller
     public function index(Request $request)
     {
         Gate::authorize('laboratory.view');
-        $data = $request->validate(['all' => ['sometimes', 'boolean'], 'date' => ListFilters::pastDate(), 'search' => ListFilters::search(), 'record' => ['nullable', Rule::in(['all', 'with_records'])]]);
+        $data = $request->validate(['all' => ['sometimes', 'boolean'], 'date' => ListFilters::pastDate(), 'search' => ListFilters::search(), 'record' => ['nullable', Rule::in(['all', 'with_records'])], 'priority' => ListFilters::priority(), 'lab_status' => ['nullable', Rule::in(array_keys(LaboratoryRecord::STATUSES))]]);
         $allDates = (bool) ($data['all'] ?? false);
         $date = $data['date'] ?? now('Asia/Manila')->toDateString();
         $search = trim($data['search'] ?? '');
         $record = $data['record'] ?? 'all';
-        $visits = Visit::forLaboratory()->with(['patient', 'service'])->withCount('laboratoryRecords')->whereHas('patient')->when($record === 'with_records', fn ($query) => $query->whereHas('laboratoryRecords'))->when(! $allDates, fn ($query) => $query->whereDate('visit_date', $date))->searchPatientOrQueue($search)->priorityFirst()->scrollPaginate()->withQueryString();
+        $visits = Visit::forLaboratory()->with(['patient', 'service'])->withCount('laboratoryRecords')->whereHas('patient')->when($record === 'with_records', fn ($query) => $query->whereHas('laboratoryRecords'))->when($data['priority'] ?? null, fn ($query, $priority) => $query->where('priority', $priority))->when($data['lab_status'] ?? null, fn ($query, $status) => $query->whereHas('laboratoryRecords', fn ($records) => $records->where('availability_status', $status)))->when(! $allDates, fn ($query) => $query->whereDate('visit_date', $date))->searchPatientOrQueue($search)->priorityFirst()->scrollPaginate()->withQueryString();
 
         return view('laboratory.index', compact('allDates', 'search', 'date', 'visits', 'record'));
     }
@@ -101,8 +100,8 @@ class LaboratoryController extends Controller
                 throw ValidationException::withMessages(['visit' => 'Only open visits can have laboratory records changed.']);
             }
             $entry = $record === null ? null : $visit->laboratoryRecords()->findOrFail($record);
-            if ($entry?->authorizing_doctor_id && $entry->test_name !== $data['test_name']) {
-                throw ValidationException::withMessages(['test_name' => 'The authorized test cannot be changed. Ask the doctor to review the request.']);
+            if ($entry?->isOrdered() && $entry->test_name !== $data['test_name']) {
+                throw ValidationException::withMessages(['test_name' => 'The ordered test cannot be changed. Ask the person who ordered it to review the request.']);
             }
             if ((int) $data['lock_version'] !== ($entry?->lock_version ?? 0)) {
                 throw ValidationException::withMessages(['lock_version' => 'This record changed. Reload and review the latest values.']);
@@ -134,9 +133,9 @@ class LaboratoryController extends Controller
             $entry->lock_version = (int) $data['lock_version'] + 1;
             $entry->save();
             activity('laboratory')->causedBy($request->user())->performedOn($entry)->withProperties(['visit_id' => $visit->id, 'version' => $entry->lock_version])->log($creating ? 'laboratory.created' : 'laboratory.updated');
-            // The ordering doctor hears once, when a pending request is completed or referred out.
-            if ($wasPending && $entry->availability_status !== 'PENDING' && $entry->authorizing_doctor_id) {
-                WorkflowAlerts::send('lab_completed', $visit, [User::find($entry->authorizing_doctor_id)], $request->user(), ['laboratory_record_ids' => [$entry->id]]);
+            // Whoever ordered the test hears once, when a pending request is completed or referred out.
+            if ($wasPending && $entry->availability_status !== 'PENDING' && $entry->isOrdered() && $entry->orderer()) {
+                WorkflowAlerts::send('lab_completed', $visit, [$entry->orderer()], $request->user(), ['laboratory_record_ids' => [$entry->id]]);
             }
         });
 

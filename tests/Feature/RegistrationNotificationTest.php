@@ -49,7 +49,7 @@ class RegistrationNotificationTest extends TestCase
         $this->get(route('notifications.open', $staffAlert->id))->assertRedirect(route('patients.show', $patient));
         $this->actingAs($admin)->getJson(route('notifications.poll'))->assertOk()
             ->assertJsonPath('unread', 1)->assertJsonPath('latest.0.headline', 'New patient registered')->assertJsonPath('latest.0.url', null);
-        $this->get(route('notifications.open', $adminAlert->id))->assertForbidden();
+        $this->getJson(route('notifications.open', $adminAlert->id))->assertForbidden();
         $this->get(route('notifications.open', $staffAlert->id))->assertNotFound();
 
         // Rejected duplicate submissions must not announce another registration.
@@ -76,7 +76,7 @@ class RegistrationNotificationTest extends TestCase
 
         $staff->syncRoles(['Pharmacist']);
         $this->actingAs($staff->fresh())->getJson(route('notifications.panel'))->assertOk()->assertDontSee($patient->full_name);
-        $this->get(route('notifications.open', $staffAlert->id))->assertForbidden();
-        $this->get(route('notifications.open', $staffVisitAlert->id))->assertForbidden();
+        $this->getJson(route('notifications.open', $staffAlert->id))->assertForbidden();
+        $this->getJson(route('notifications.open', $staffVisitAlert->id))->assertForbidden();
     }
 }

@@ -83,10 +83,10 @@ class PatientRegistryTest extends TestCase
         $this->post('/patients', $this->data())->assertRedirect('/login');
         foreach (['System Admin', 'Nurse', 'Doctor / Medical Officer', 'MedTech', 'Pharmacist', 'Midwife'] as $role) {
             $this->actingAs($this->staff($role));
-            $this->get('/patients')->assertForbidden();
-            $this->get('/patients/create')->assertForbidden();
-            $this->get(route('patients.show', $patient))->assertForbidden();
-            $this->get(route('patients.edit', $patient))->assertForbidden();
+            $this->getJson('/patients')->assertForbidden();
+            $this->getJson('/patients/create')->assertForbidden();
+            $this->getJson(route('patients.show', $patient))->assertForbidden();
+            $this->getJson(route('patients.edit', $patient))->assertForbidden();
             $this->post('/patients', $this->data())->assertForbidden();
             $this->put(route('patients.update', $patient), $this->data(['lock_version' => 1]))->assertForbidden();
         }
@@ -213,7 +213,7 @@ class PatientRegistryTest extends TestCase
         $this->get('/patients?q[]=bad')->assertSessionHasErrors('q');
     }
 
-    public function test_registry_filters_by_sex_age_group_barangay_and_visits_with_search(): void
+    public function test_registry_filters_by_sex_age_group_and_visits_with_search(): void
     {
         $this->travelTo(now('Asia/Manila')->setDate(2026, 10, 25)->setTime(9, 0));
         $staff = $this->staff();
@@ -225,16 +225,16 @@ class PatientRegistryTest extends TestCase
         Visit::forceCreate(['patient_id' => $adult->id, 'service_id' => $service->id, 'created_by' => $staff->id, 'visit_date' => '2026-10-25', 'status' => Visit::OPEN]);
         Visit::forceCreate(['patient_id' => $senior->id, 'service_id' => $service->id, 'created_by' => $staff->id, 'visit_date' => '2026-10-20', 'status' => Visit::COMPLETED]);
 
-        $this->get('/patients')->assertOk()->assertSeeInOrder(['Visits', 'No visits yet', '<label for="table-search" class="mb-2 block text-sm font-medium">Patient number or name</label>'], false)->assertSee('Age group')->assertSee('<option value="Alpha"', false)->assertSee('<option value="Beta"', false);
+        $this->get('/patients')->assertOk()->assertSeeInOrder(['Visits', 'No visits yet', '<label for="table-search" class="mb-2 block text-sm font-medium">Patient number or name</label>'], false)->assertSee('Age group')->assertDontSee('name="barangay"', false);
         $this->get('/patients?sex=Female')->assertSee($adult->patient_number)->assertSee($senior->patient_number)->assertDontSee($child->patient_number);
         // Turning 60 today counts as a senior citizen; a 17-year-old is a child.
         $this->get('/patients?age=senior')->assertSee($senior->patient_number)->assertDontSee($adult->patient_number)->assertDontSee($child->patient_number);
         $this->get('/patients?age=child')->assertSee($child->patient_number)->assertDontSee($adult->patient_number);
         $this->get('/patients?age=adult')->assertSee($adult->patient_number)->assertDontSee($senior->patient_number)->assertDontSee($child->patient_number);
-        $this->get('/patients?barangay=Alpha')->assertSee($child->patient_number)->assertSee($senior->patient_number)->assertDontSee($adult->patient_number);
+        $this->get('/patients?barangay=Alpha')->assertSee($child->patient_number)->assertSee($senior->patient_number)->assertSee($adult->patient_number);
         $this->get('/patients?visits=open')->assertSee($adult->patient_number)->assertDontSee($senior->patient_number)->assertDontSee($child->patient_number);
         $this->get('/patients?visits=none')->assertSee($child->patient_number)->assertDontSee($adult->patient_number)->assertDontSee($senior->patient_number);
-        $this->get('/patients?q=filter&sex=Female&barangay=Alpha')->assertSee($senior->patient_number)->assertDontSee($adult->patient_number)->assertSee('1 patient found');
+        $this->get('/patients?q=filter&sex=Female&age=senior')->assertSee($senior->patient_number)->assertDontSee($adult->patient_number)->assertSee('1 patient found');
         $this->get('/patients?sex=Unknown')->assertSessionHasErrors('sex');
         $this->get('/patients?age=elderly')->assertSessionHasErrors('age');
         $this->get('/patients?visits=all')->assertSessionHasErrors('visits');

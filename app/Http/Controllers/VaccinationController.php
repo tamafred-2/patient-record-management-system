@@ -16,11 +16,13 @@ class VaccinationController extends Controller
     public function index(Request $request)
     {
         Gate::authorize('vaccinations.view');
-        $data = $request->validate(['all' => ['sometimes', 'boolean'], 'date' => ListFilters::pastDate(), 'search' => ListFilters::search()]);
+        $data = $request->validate(['all' => ['sometimes', 'boolean'], 'date' => ListFilters::pastDate(), 'search' => ListFilters::search(), 'priority' => ListFilters::priority(), 'vaccination' => ['nullable', 'in:pending,recorded']]);
         $allDates = (bool) ($data['all'] ?? false);
         $date = $data['date'] ?? now('Asia/Manila')->toDateString();
         $search = trim($data['search'] ?? '');
-        $visits = Visit::vaccinationVisits()->with('patient')->withCount('vaccinationRecords')
+        $visits = Visit::vaccinationVisits()->with('patient')->withCount('vaccinationRecords')->when($data['priority'] ?? null, fn ($query, $priority) => $query->where('priority', $priority))
+            ->when(($data['vaccination'] ?? null) === 'pending', fn ($query) => $query->doesntHave('vaccinationRecords'))
+            ->when(($data['vaccination'] ?? null) === 'recorded', fn ($query) => $query->has('vaccinationRecords'))
             ->when(! $allDates, fn ($query) => $query->whereDate('visit_date', $date))->searchPatientOrQueue($search)->priorityFirst()->scrollPaginate()->withQueryString();
 
         return view('vaccinations.index', compact('allDates', 'search', 'date', 'visits'));

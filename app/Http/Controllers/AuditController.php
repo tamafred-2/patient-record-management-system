@@ -6,6 +6,8 @@ use App\Models\Dispensing;
 use App\Models\DispositionRecord;
 use App\Models\EligibilityCheck;
 use App\Models\LaboratoryRecord;
+use App\Models\Medicine;
+use App\Models\MedicineBatch;
 use App\Models\MidwifeCareRecord;
 use App\Models\Patient;
 use App\Models\Prescription;
@@ -32,6 +34,8 @@ class AuditController extends Controller
         'report.exported' => 'Aggregate report exported',
         'visit.summary_exported' => 'Internal visit summary exported',
         'certificate.pdf_downloaded' => 'Medical certificate PDF downloaded',
+        'inventory.medicine_added' => 'Medicine added to inventory', 'inventory.medicine_updated' => 'Medicine settings updated',
+        'inventory.stock_received' => 'Medicine stock received', 'inventory.adjusted' => 'Medicine stock adjusted',
         'demo.workflow_seeded' => 'Fictional workflow seeded',
         'staff.created' => 'User account created', 'staff.access_updated' => 'User access updated',
         'staff.demo_seeded' => 'Demo account created', 'staff.admin_bootstrapped' => 'Administrator created',
@@ -57,6 +61,7 @@ class AuditController extends Controller
         VitalSign::class => 'Vital signs', EligibilityCheck::class => 'Confirmation',
         TreatmentRecord::class => 'ITR', Prescription::class => 'Prescription',
         Dispensing::class => 'Medicine release', LaboratoryRecord::class => 'Laboratory service',
+        Medicine::class => 'Medicine', MedicineBatch::class => 'Medicine stock batch',
     ];
 
     public function index(Request $request)
